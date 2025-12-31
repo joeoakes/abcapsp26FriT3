@@ -2,7 +2,7 @@
 
 # 🐾 Mini-Pupper Swarm Exploration with Secure AI-RAG Diagnostics
 
-**Senior Capstone – Spring 2026**  
+**Senior Capstone – Spring 2026 Friday Team 3**  
 **Penn State Abington – CMPSC & IT**
 
 ---
