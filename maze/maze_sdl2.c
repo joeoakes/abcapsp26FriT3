@@ -1,6 +1,7 @@
 // maze_sdl2.c
 // Simple SDL2 maze: generate (DFS backtracker), draw, move player to goal.
 // Controls: Arrow keys or WASD. R = regenerate. Esc = quit.
+// Compile: gcc maze_sdl2.c -o maze_sdl2 `sdl2-config --cflags --libs` -lcurl $(pkg-config --cflags --libs libmongoc-1.0)
 
 #include <SDL2/SDL.h>
 #include <stdbool.h>
@@ -8,11 +9,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <curl/curl.h>
+#include <bson/bson.h>
 
 #define MAZE_W 21   // number of cells horizontally
 #define MAZE_H 15   // number of cells vertically
 #define CELL   32   // pixels per cell
 #define PAD    16   // window padding around maze
+#define URL_ENDPOINT "http://localhost:8080/move"
+#define JSON_BUFFER_SIZE 1024
+
 
 // Wall bitmask for each cell
 enum { WALL_N = 1, WALL_E = 2, WALL_S = 4, WALL_W = 8 };
@@ -184,9 +190,99 @@ static void regenerate(int* px, int* py, SDL_Window* win) {
   SDL_SetWindowTitle(win, "SDL2 Maze - Reach the green goal (R to regenerate)");
 }
 
+int post_json_to_move(const char* url, const char* json_data) {
+    CURL* curl;
+    CURLcode res;
+    int success = 0;
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+    if (!curl) {
+        fprintf(stderr, "Failed to initialize curl\n");
+        curl_global_cleanup();
+        return 0;
+    }
+
+    struct curl_slist* headers = NULL;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data);
+
+    // Optional: capture response
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // enable to see response
+
+    res = curl_easy_perform(curl);
+    if (res != CURLE_OK) {
+        fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+    } else {
+        success = 1;
+    }
+
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+    return success;
+}
+
+// Function to create the JSON string
+void create_player_move_json(
+    const char *event_type,
+    const char *device,
+    int move_sequence,
+    int pos_x,
+    int pos_y,
+    bool goal_reached,
+    const char *timestamp,
+    char *output_buffer, // pass in a pre-allocated buffer
+    size_t buffer_size
+) {
+    snprintf(
+        output_buffer, buffer_size,
+        "{"
+            "\"event_type\": \"%s\","
+            "\"input\": {\"device\": \"%s\", \"move_sequence\": %d},"
+            "\"player\": {\"position\": {\"x\": %d, \"y\": %d}},"
+            "\"goal_reached\": %s,"
+            "\"timestamp\": \"%s\""
+        "}",
+        event_type,
+        device,
+        move_sequence,
+        pos_x,
+        pos_y,
+        goal_reached ? "true" : "false",
+        timestamp
+    );
+}
+
+void print_pretty_json(const char *json_str) {
+    if (!json_str || !*json_str) {
+        printf("{}\n");
+        return;
+    }
+
+    bson_error_t err;
+    bson_t *doc = bson_new_from_json((const uint8_t*)json_str, -1, &err);
+    if (!doc) {
+        fprintf(stderr, "Invalid JSON: %s\n", err.message);
+        return;
+    }
+
+    // Convert to pretty-printed JSON
+    char *pretty = bson_as_canonical_extended_json(doc, NULL);
+    printf("%s\n", pretty);
+
+    bson_free(pretty);
+    bson_destroy(doc);
+}
+
 int main(int argc, char** argv) {
   (void)argc; (void)argv;
   srand((unsigned)time(NULL));
+  char json[JSON_BUFFER_SIZE];
+  int moveSequence = 0;
 
   if (SDL_Init(SDL_INIT_VIDEO) != 0) {
     fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
@@ -224,7 +320,9 @@ int main(int argc, char** argv) {
 
   while (running) {
     SDL_Event e;
+    bool hasMoved;
     while (SDL_PollEvent(&e)) {
+      hasMoved = false;
       if (e.type == SDL_QUIT) running = false;
 
       if (e.type == SDL_KEYDOWN) {
@@ -236,17 +334,43 @@ int main(int argc, char** argv) {
           regenerate(&px, &py, win);
           won = false;
         }
-
         if (!won) {
-          if (k == SDLK_UP || k == SDLK_w)    try_move(&px, &py, 0, -1);
-          if (k == SDLK_RIGHT || k == SDLK_d) try_move(&px, &py, 1, 0);
-          if (k == SDLK_DOWN || k == SDLK_s)  try_move(&px, &py, 0, 1);
-          if (k == SDLK_LEFT || k == SDLK_a)  try_move(&px, &py, -1, 0);
+          if (k == SDLK_UP || k == SDLK_w)    hasMoved = try_move(&px, &py, 0, -1);
+          if (k == SDLK_RIGHT || k == SDLK_d) hasMoved = try_move(&px, &py, 1, 0);
+          if (k == SDLK_DOWN || k == SDLK_s)  hasMoved = try_move(&px, &py, 0, 1);
+          if (k == SDLK_LEFT || k == SDLK_a)  hasMoved = try_move(&px, &py, -1, 0);
+          
 
           if (px == MAZE_W - 1 && py == MAZE_H - 1) {
             won = true;
             SDL_SetWindowTitle(win, "You win! Press R to regenerate, Esc to quit");
           }
+
+          if (hasMoved) {
+              // Add received_at as an ISO8601 string in UTC (simple + human-friendly)
+              time_t now = time(NULL);
+              struct tm tmbuf;
+            #if defined(_WIN32)
+              gmtime_s(&tmbuf, &now);
+            #else
+              gmtime_r(&now, &tmbuf);
+            #endif
+              char ts[32];
+              strftime(ts, sizeof(ts), "%Y-%m-%dT%H:%M:%SZ", &tmbuf);
+            moveSequence += 1;
+            create_player_move_json(
+            "player_move",
+            "joystick",
+            moveSequence,
+            px,
+            py,
+            won,
+            ts,
+            json,
+            JSON_BUFFER_SIZE
+            );
+            post_json_to_move(URL_ENDPOINT, json);
+            print_pretty_json(json);}
         }
       }
     }
