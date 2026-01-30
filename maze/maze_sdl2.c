@@ -16,7 +16,7 @@
 #define MAZE_H 15   // number of cells vertically
 #define CELL   32   // pixels per cell
 #define PAD    16   // window padding around maze
-#define URL_ENDPOINT "http://localhost:8080/move"
+#define URL_ENDPOINT "https://localhost:8443/move"
 #define JSON_BUFFER_SIZE 1024
 
 
@@ -210,8 +210,18 @@ int post_json_to_move(const char* url, const char* json_data) {
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_data);
 
-    // Optional: capture response
-    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L); // enable to see response
+    // Enable TLS
+    curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_ALL);
+
+    // --- Self-signed certificate handling ---
+    // 1️⃣ Point curl to your server cert
+    curl_easy_setopt(curl, CURLOPT_CAINFO, "certs/server.crt");
+    // 2️⃣ Keep verification enabled (recommended)
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+
+    // Optional: verbose output for debugging TLS handshake
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 
     res = curl_easy_perform(curl);
     if (res != CURLE_OK) {
@@ -225,6 +235,7 @@ int post_json_to_move(const char* url, const char* json_data) {
     curl_global_cleanup();
     return success;
 }
+
 
 // Function to create the JSON string
 void create_player_move_json(
