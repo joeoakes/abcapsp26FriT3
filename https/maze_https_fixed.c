@@ -97,7 +97,11 @@ static int handle_post(void *cls,
 
     mongoc_collection_t *col = mongoc_client_get_collection(client, db_name, col_name);
 
-    mongoc_collection_insert_one(col, doc, NULL, NULL, &error);
+    if (!mongoc_collection_insert_one(col, doc, NULL, NULL, &error)) {
+    fprintf(stderr, "Mongo insert failed: %s\n", error.message);
+}
+
+    //mongoc_collection_insert_one(col, doc, NULL, NULL, &error);
 
     mongoc_collection_destroy(col);
     mongoc_client_destroy(client);
