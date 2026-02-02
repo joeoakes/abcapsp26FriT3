@@ -9,8 +9,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <math.h>
 #include <curl/curl.h>
 #include <bson/bson.h>
+#include <hiredis/hiredis.h>
 
 #define MAZE_W 21   // number of cells horizontally
 #define MAZE_H 15   // number of cells vertically
@@ -290,6 +292,61 @@ void print_pretty_json(const char *json_str) {
 }
 
 int main(int argc, char** argv) {
+  redisContext *c = redisConnect("127.0.0.1", 6379);
+
+  if (c == NULL || c->err) {
+      if (c) printf("Redis error: %s\n", c->errstr);
+      else printf("Can't allocate redis context\n");
+      return 1;
+  }
+  printf("Connected to Redis\n");
+
+  char *mission_id = "TEST_MISSION";
+  char *robot_id = "TEST_ROBOT";
+  char *mission_type = "patrol";
+  time_t start_time = time(NULL);
+  time_t end_time = time(NULL);
+  int moves_left_turn = 0;
+  int moves_right_turn = 0;
+  int moves_straight = 0;
+  int moves_reverse = 0;
+
+
+
+  redisReply *reply = redisCommand(
+  c,
+  "HSET mission:%s:summary "
+  "robot_id %s "
+  "mission_type %s "
+  "start_time %ld "
+  "end_time %ld "
+  "moves_left_turn %d "
+  "moves_right_turn %d "
+  "moves_straight %d "
+  "moves_reverse %d "
+  "moves_total %d "
+  "distance_traveled %.2f "
+  "duration_seconds %ld "
+  "mission_result %s "
+  "abort_reason %s",
+  mission_id,
+  robot_id,                  // e.g. "mini_01"
+  mission_type,              // e.g. "exploration"
+  start_time,                // time_t or 0
+  end_time,                  // time_t or 0
+  moves_left_turn,                         // moves_left_turn
+  moves_right_turn,                         // moves_right_turn
+  moves_straight,                         // moves_straight
+  moves_reverse,                         // moves_reverse
+  0,                         // moves_total
+  0.0,                       // distance_traveled
+  0L,                        // duration_seconds
+  "aborted",                 // mission_result
+  "user exited"              // abort_reason
+  );
+
+  freeReplyObject(reply);
+
   (void)argc; (void)argv;
   srand((unsigned)time(NULL));
   char json[JSON_BUFFER_SIZE];
@@ -326,6 +383,8 @@ int main(int argc, char** argv) {
   int px = 0, py = 0;
   regenerate(&px, &py, win);
 
+  char orientation = 'E';
+
   bool running = true;
   bool won = false;
 
@@ -341,15 +400,137 @@ int main(int argc, char** argv) {
 
         if (k == SDLK_ESCAPE) running = false;
 
+        if (k == SDLK_l) {
+          end_time = time(NULL);
+          redisReply *reply = redisCommand(
+            c,
+            "HSET mission:%s:summary "
+            "end_time %ld "
+            "moves_left_turn %d "
+            "moves_right_turn %d "
+            "moves_straight %d "
+            "moves_reverse %d "
+            "moves_total %d "
+            "distance_traveled %.2f "
+            "duration_seconds %ld "
+            "mission_result %s "
+            "abort_reason %s",
+            mission_id,
+            end_time,                  // time_t or 0
+            moves_left_turn,                         // moves_left_turn
+            moves_right_turn,                         // moves_right_turn
+            moves_straight,                         // moves_straight
+            moves_reverse,                         // moves_reverse
+            moves_left_turn + moves_right_turn + moves_straight + moves_reverse,   // moves_total
+            sqrt(px*px + py*py),                       // distance_traveled
+            end_time - start_time,                        // duration_seconds
+            won ? "success" : "aborted",                 // mission_result
+            "user exited"              // abort_reason
+          );
+          execl("./missions/mission_dashboard", "mission_dashboard", mission_id, NULL);
+        }
+
         if (k == SDLK_r) {
           regenerate(&px, &py, win);
           won = false;
         }
         if (!won) {
-          if (k == SDLK_UP || k == SDLK_w)    hasMoved = try_move(&px, &py, 0, -1);
-          if (k == SDLK_RIGHT || k == SDLK_d) hasMoved = try_move(&px, &py, 1, 0);
-          if (k == SDLK_DOWN || k == SDLK_s)  hasMoved = try_move(&px, &py, 0, 1);
-          if (k == SDLK_LEFT || k == SDLK_a)  hasMoved = try_move(&px, &py, -1, 0);
+          if (k == SDLK_UP || k == SDLK_w) 
+          {
+            hasMoved = try_move(&px, &py, 0, -1);
+            if (hasMoved)
+            {
+              if (orientation == 'N')
+              {
+                moves_straight += 1;
+              }
+              else if (orientation == 'E')
+              {
+                moves_left_turn += 1;
+              }
+              else if (orientation == 'S')
+              {
+                moves_reverse += 1;
+              }
+              else if (orientation == 'W')
+              {
+                moves_right_turn += 1;
+              }
+              orientation = 'N';
+            }
+          }
+          if (k == SDLK_RIGHT || k == SDLK_d)
+          {
+            hasMoved = try_move(&px, &py, 1, 0);
+            if (hasMoved)
+            {
+              if (orientation == 'N')
+              {
+                moves_right_turn += 1;
+              }
+              else if (orientation == 'E')
+              {
+                moves_straight += 1;
+              }
+              else if (orientation == 'S')
+              {
+                moves_left_turn += 1;
+              }
+              else if (orientation == 'W')
+              {
+                moves_reverse += 1;
+              }
+              orientation = 'E';
+            }
+          }
+          if (k == SDLK_DOWN || k == SDLK_s)  
+          {
+            hasMoved = try_move(&px, &py, 0, 1);
+            if (hasMoved)
+            {
+              if (orientation == 'N')
+              {
+                moves_reverse += 1;
+              }
+              else if (orientation == 'E')
+              {
+                moves_right_turn += 1;
+              }
+              else if (orientation == 'S')
+              {
+                moves_straight += 1;
+              }
+              else if (orientation == 'W')
+              {
+                moves_left_turn += 1;
+              }
+              orientation = 'S';
+            }
+          }
+          if (k == SDLK_LEFT || k == SDLK_a)  
+          {
+            hasMoved = try_move(&px, &py, -1, 0);
+            if (hasMoved)
+            {
+              if (orientation == 'N')
+              {
+                moves_left_turn += 1;
+              }
+              else if (orientation == 'E')
+              {
+                moves_reverse += 1;
+              }
+              else if (orientation == 'S')
+              {
+                moves_right_turn += 1;
+              }
+              else if (orientation == 'W')
+              {
+                moves_straight += 1;
+              }
+              orientation = 'W';
+            }
+          }
           
 
           if (px == MAZE_W - 1 && py == MAZE_H - 1) {
