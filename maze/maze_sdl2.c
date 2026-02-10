@@ -13,6 +13,7 @@
 #include <curl/curl.h>
 #include <bson/bson.h>
 #include <hiredis/hiredis.h>
+#include <unistd.h>
 
 #define MAZE_W 21   // number of cells horizontally
 #define MAZE_H 15   // number of cells vertically
@@ -291,6 +292,206 @@ void print_pretty_json(const char *json_str) {
     bson_destroy(doc);
 }
 
+char *read_file(const char *path) {
+    FILE *f = fopen(path, "r");
+    if (!f) return NULL;
+
+    fseek(f, 0, SEEK_END);
+    long len = ftell(f);
+    rewind(f);
+
+    char *buf = malloc(len + 1);
+    if (!buf) {
+        fclose(f);
+        return NULL;
+    }
+
+    fread(buf, 1, len, f);
+    buf[len] = '\0';
+
+    fclose(f);
+    return buf;
+}
+
+int load_maze_data(const char *path,
+                   char *mission_id,
+                   size_t mission_id_sz,
+                   int *px,
+                   int *py,
+                   char *dir)
+{
+    if (!path || !mission_id || !px || !py || !dir) return 0;
+
+    // Read entire file
+    FILE *f = fopen(path, "r");
+    if (!f) {
+        fprintf(stderr, "Cannot open file '%s'\n", path);
+        return 0;
+    }
+
+    fseek(f, 0, SEEK_END);
+    long len = ftell(f);
+    rewind(f);
+
+    char *json = malloc(len + 1);
+    if (!json) {
+        fclose(f);
+        return 0;
+    }
+
+    if (fread(json, 1, len, f) != (size_t)len) {
+        fprintf(stderr, "Failed to read file '%s'\n", path);
+        free(json);
+        fclose(f);
+        return 0;
+    }
+    json[len] = '\0';
+    fclose(f);
+
+    // Parse JSON using BSON
+    bson_error_t err;
+    bson_t *doc = bson_new_from_json((const uint8_t*)json, -1, &err);
+    free(json);
+
+    if (!doc) {
+        fprintf(stderr, "Failed to parse JSON: %s\n", err.message);
+        return 0;
+    }
+
+    bson_iter_t iter;
+
+    // mission_id
+    if (bson_iter_init_find(&iter, doc, "mission_id") && BSON_ITER_HOLDS_UTF8(&iter)) {
+        strncpy(mission_id, bson_iter_utf8(&iter, NULL), mission_id_sz - 1);
+        mission_id[mission_id_sz - 1] = '\0';
+    } else {
+        fprintf(stderr, "Missing or invalid mission_id\n");
+        bson_destroy(doc);
+        return 0;
+    }
+
+    // px
+    if (bson_iter_init_find(&iter, doc, "px") && BSON_ITER_HOLDS_INT32(&iter)) {
+        *px = bson_iter_int32(&iter);
+        if (*px < 0 || *px >= MAZE_W) {
+            fprintf(stderr, "Invalid px value %d\n", *px);
+            bson_destroy(doc);
+            return 0;
+        }
+    } else {
+        fprintf(stderr, "Missing or invalid px\n");
+        bson_destroy(doc);
+        return 0;
+    }
+
+    // py
+    if (bson_iter_init_find(&iter, doc, "py") && BSON_ITER_HOLDS_INT32(&iter)) {
+        *py = bson_iter_int32(&iter);
+        if (*py < 0 || *py >= MAZE_H) {
+            fprintf(stderr, "Invalid py value %d\n", *py);
+            bson_destroy(doc);
+            return 0;
+        }
+    } else {
+        fprintf(stderr, "Missing or invalid py\n");
+        bson_destroy(doc);
+        return 0;
+    }
+
+    // dir
+    if (bson_iter_init_find(&iter, doc, "dir") && BSON_ITER_HOLDS_UTF8(&iter)) {
+        const char *s = bson_iter_utf8(&iter, NULL);
+        if (s[0] == 'N' || s[0] == 'S' || s[0] == 'E' || s[0] == 'W') {
+            *dir = s[0];
+        } else {
+            fprintf(stderr, "Invalid dir value '%c', defaulting to 'E'\n", s[0]);
+            *dir = 'E';
+        }
+    } else {
+        fprintf(stderr, "Missing dir, defaulting to 'E'\n");
+        *dir = 'E';
+    }
+
+    bson_destroy(doc);
+    return 1;
+}
+
+int save_maze_data(const char *path,
+                   const char *mission_id,
+                   int px,
+                   int py,
+                   char dir)
+{
+    FILE *f = fopen(path, "w");
+    if (!f) return 0;
+
+    fprintf(f,
+        "{\n"
+        "  \"mission_id\": \"%s\",\n"
+        "  \"px\": %d,\n"
+        "  \"py\": %d,\n"
+        "  \"dir\": \"%c\"\n"
+        "}\n",
+        mission_id, px, py, dir);
+
+    fflush(f);
+    fclose(f);
+    return 1;
+}
+
+char *redis_hget_str(redisContext *c,
+                     const char *key,
+                     const char *field)
+{
+    redisReply *reply = redisCommand(c, "HGET %s %s", key, field);
+
+    if (!reply) return NULL;
+
+    char *out = NULL;
+    if (reply->type == REDIS_REPLY_STRING) {
+        out = strdup(reply->str);
+    }
+
+    freeReplyObject(reply);
+    return out;
+}
+
+int save_maze_grid(const char *path)
+{
+    FILE *f = fopen(path, "wb");
+    if (!f) return 0;
+
+    for (int y = 0; y < MAZE_H; y++) {
+        for (int x = 0; x < MAZE_W; x++) {
+            uint8_t w = g[y][x].walls;
+            fwrite(&w, 1, 1, f);
+        }
+    }
+
+    fclose(f);
+    return 1;
+}
+
+int load_maze_grid(const char *path)
+{
+    FILE *f = fopen(path, "rb");
+    if (!f) return 0;
+
+    for (int y = 0; y < MAZE_H; y++) {
+        for (int x = 0; x < MAZE_W; x++) {
+            uint8_t w;
+            if (fread(&w, 1, 1, f) != 1) {
+                fclose(f);
+                return 0;
+            }
+            g[y][x].walls = w;
+        }
+    }
+
+    fclose(f);
+    return 1;
+}
+
 int main(int argc, char** argv) {
   redisContext *c = redisConnect("127.0.0.1", 6379);
 
@@ -301,9 +502,17 @@ int main(int argc, char** argv) {
   }
   printf("Connected to Redis\n");
 
-  char *mission_id = "TEST_MISSION";
-  char *robot_id = "TEST_ROBOT";
-  char *mission_type = "patrol";
+int tombstone_mode = 0;
+
+for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "--tombstone") == 0) {
+        tombstone_mode = 1;
+    }
+}
+
+  char mission_id[128] = "TEST_MISSION";  // default
+  char robot_id[128] = "TEST_ROBOT";      // default
+  char mission_type[128] = "patrol";      // default
   time_t start_time = time(NULL);
   time_t end_time = time(NULL);
   int moves_left_turn = 0;
@@ -311,41 +520,7 @@ int main(int argc, char** argv) {
   int moves_straight = 0;
   int moves_reverse = 0;
 
-
-
-  redisReply *reply = redisCommand(
-  c,
-  "HSET mission:%s:summary "
-  "robot_id %s "
-  "mission_type %s "
-  "start_time %ld "
-  "end_time %ld "
-  "moves_left_turn %d "
-  "moves_right_turn %d "
-  "moves_straight %d "
-  "moves_reverse %d "
-  "moves_total %d "
-  "distance_traveled %.2f "
-  "duration_seconds %ld "
-  "mission_result %s "
-  "abort_reason %s",
-  mission_id,
-  robot_id,                  // e.g. "mini_01"
-  mission_type,              // e.g. "exploration"
-  start_time,                // time_t or 0
-  end_time,                  // time_t or 0
-  moves_left_turn,                         // moves_left_turn
-  moves_right_turn,                         // moves_right_turn
-  moves_straight,                         // moves_straight
-  moves_reverse,                         // moves_reverse
-  0,                         // moves_total
-  0.0,                       // distance_traveled
-  0L,                        // duration_seconds
-  "aborted",                 // mission_result
-  "user exited"              // abort_reason
-  );
-
-  freeReplyObject(reply);
+  
 
   (void)argc; (void)argv;
   srand((unsigned)time(NULL));
@@ -388,6 +563,126 @@ int main(int argc, char** argv) {
   bool running = true;
   bool won = false;
 
+  if (!tombstone_mode)
+  {
+    redisReply *reply = redisCommand(
+    c,
+    "HSET mission:%s:summary "
+    "robot_id %s "
+    "mission_type %s "
+    "start_time %ld "
+    "end_time %ld "
+    "moves_left_turn %d "
+    "moves_right_turn %d "
+    "moves_straight %d "
+    "moves_reverse %d "
+    "moves_total %d "
+    "distance_traveled %.2f "
+    "duration_seconds %ld "
+    "mission_result %s "
+    "abort_reason %s",
+    mission_id,
+    robot_id,                  // e.g. "mini_01"
+    mission_type,              // e.g. "exploration"
+    start_time,                // time_t or 0
+    end_time,                  // time_t or 0
+    moves_left_turn,                         // moves_left_turn
+    moves_right_turn,                         // moves_right_turn
+    moves_straight,                         // moves_straight
+    moves_reverse,                         // moves_reverse
+    0,                         // moves_total
+    0.0,                       // distance_traveled
+    0L,                        // duration_seconds
+    "aborted",                 // mission_result
+    "user exited"              // abort_reason
+    );
+    freeReplyObject(reply);
+    save_maze_grid("maze_grid.dat");
+  }
+  else 
+  {
+    if (!load_maze_grid("maze_grid.dat")) {
+        fprintf(stderr, "Failed to load saved maze, generating new\n");
+        SDL_DestroyRenderer(r);
+        SDL_DestroyWindow(win);
+        SDL_Quit();
+        return 1;
+    }
+    
+    if (!load_maze_data("maze_data.json",
+                        mission_id, sizeof(mission_id),
+                        &px, &py, &orientation)) {
+        fprintf(stderr, "Failed to load maze_data.json\n");
+        exit(1);
+    }
+
+
+
+    char key[128];
+    snprintf(key, sizeof(key), "mission:%s:summary", mission_id);
+
+    char *tmp;
+
+    // robot_id
+    tmp = redis_hget_str(c, key, "robot_id");
+    if (tmp) {
+        strncpy(robot_id, tmp, sizeof(robot_id)-1);
+        robot_id[sizeof(robot_id)-1] = '\0';
+        free(tmp);
+    } else {
+        strncpy(robot_id, "TEST_ROBOT", sizeof(robot_id)-1);
+        robot_id[sizeof(robot_id)-1] = '\0';
+    }
+
+    // mission_type
+    tmp = redis_hget_str(c, key, "mission_type");
+    if (tmp) {
+        strncpy(mission_type, tmp, sizeof(mission_type)-1);
+        mission_type[sizeof(mission_type)-1] = '\0';
+        free(tmp);
+    } else {
+        strncpy(mission_type, "patrol", sizeof(mission_type)-1);
+        mission_type[sizeof(mission_type)-1] = '\0';
+    }
+
+    // start_time
+    tmp = redis_hget_str(c, key, "start_time");
+    start_time = tmp ? atol(tmp) : time(NULL);
+    if (tmp) free(tmp);
+
+    // end_time
+    tmp = redis_hget_str(c, key, "end_time");
+    end_time = tmp ? atol(tmp) : start_time;
+    if (tmp) free(tmp);
+
+    // moves_left_turn
+    tmp = redis_hget_str(c, key, "moves_left_turn");
+    moves_left_turn = tmp ? atoi(tmp) : 0;
+    if (tmp) free(tmp);
+
+    // moves_right_turn
+    tmp = redis_hget_str(c, key, "moves_right_turn");
+    moves_right_turn = tmp ? atoi(tmp) : 0;
+    if (tmp) free(tmp);
+
+    // moves_straight
+    tmp = redis_hget_str(c, key, "moves_straight");
+    moves_straight = tmp ? atoi(tmp) : 0;
+    if (tmp) free(tmp);
+
+    // moves_reverse
+    tmp = redis_hget_str(c, key, "moves_reverse");
+    moves_reverse = tmp ? atoi(tmp) : 0;
+    if (tmp) free(tmp);
+
+    printf("Loaded tombstone: mission='%s', robot='%s', type='%s', px=%d, py=%d, dir=%c\n",
+           mission_id, robot_id, mission_type, px, py, orientation);
+  }
+
+  if (px == MAZE_W - 1 && py == MAZE_H - 1) {
+    won = true;
+    SDL_SetWindowTitle(win, "You win! Press R to regenerate, Esc to quit");
+  }
   while (running) {
     SDL_Event e;
     bool hasMoved;
@@ -427,11 +722,19 @@ int main(int argc, char** argv) {
             won ? "success" : "aborted",                 // mission_result
             "user exited"              // abort_reason
           );
+          if (!save_maze_data("maze_data.json",
+                    mission_id,
+                    px,
+                    py,
+                    orientation)) {
+                fprintf(stderr, "Failed to write maze_data.json\n");
+            }
           execl("./missions/mission_dashboard", "mission_dashboard", mission_id, NULL);
         }
 
         if (k == SDLK_r) {
           regenerate(&px, &py, win);
+          save_maze_grid("maze_grid.dat");
           won = false;
         }
         if (!won) {

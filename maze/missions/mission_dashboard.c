@@ -29,10 +29,43 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
+#include <unistd.h>
+
 
 #ifndef NO_REDIS
   #include <hiredis/hiredis.h>
 #endif
+
+void draw_kv(
+    SDL_Renderer* renderer,
+    TTF_Font* font,
+    int x, int y,
+    const char* key,
+    const char* fmt,
+    ...
+) {
+    char value[256];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(value, sizeof(value), fmt, args);
+    va_end(args);
+
+    char line[512];
+    snprintf(line, sizeof(line), "%s: %s", key, value);
+
+    SDL_Color white = {255, 255, 255, 255};
+    SDL_Surface* surf = TTF_RenderText_Blended(font, line, white);
+    SDL_Texture* tex = SDL_CreateTextureFromSurface(renderer, surf);
+
+    SDL_Rect dst = {x, y, surf->w, surf->h};
+    SDL_RenderCopy(renderer, tex, NULL, &dst);
+
+    SDL_FreeSurface(surf);
+    SDL_DestroyTexture(tex);
+}
+
 
 static void print_usage(const char* argv0) {
   fprintf(stderr,
@@ -167,21 +200,103 @@ int main(int argc, char** argv) {
 
   print_footer();
 
-  free(robot_id);
-  free(mission_type);
-  free(start_time);
-  free(end_time);
-  free(m_left);
-  free(m_right);
-  free(m_straight);
-  free(m_reverse);
-  free(m_total);
-  free(distance);
-  free(duration_seconds);
-  free(mission_result);
-  free(abort_reason);
+  // free(robot_id);
+  // free(mission_type);
+  // free(start_time);
+  // free(end_time);
+  // free(m_left);
+  // free(m_right);
+  // free(m_straight);
+  // free(m_reverse);
+  // free(m_total);
+  // free(distance);
+  // free(duration_seconds);
+  // free(mission_result);
+  // free(abort_reason);
 
   redisFree(c);
+  if (SDL_Init(SDL_INIT_VIDEO) != 0) {
+    fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
+    return 1;
+  }
+
+  SDL_Window* window = SDL_CreateWindow(
+      "Mission Dashboard",
+      SDL_WINDOWPOS_CENTERED,
+      SDL_WINDOWPOS_CENTERED,
+      640, 480,
+      SDL_WINDOW_SHOWN
+  );
+
+  SDL_Renderer* renderer = SDL_CreateRenderer(
+      window,
+      -1,
+      SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC
+  );
+
+
+  if (!window) {
+      fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
+      SDL_Quit();
+      return 1;
+  }
+
+
+  TTF_Init();
+
+  TTF_Font* font = TTF_OpenFont("DejaVuSansMono.ttf", 16);
+  if (!font) {
+      printf("Font error: %s\n", TTF_GetError());
+  }
+
+  while (1)
+  {
+    SDL_Event e;
+    while (SDL_PollEvent(&e)) {
+      if (e.type == SDL_KEYDOWN) 
+      {
+        SDL_Keycode k = e.key.keysym.sym;
+        if (k == SDLK_r) {
+          if (execl("./maze_sdl2", "maze_sdl2", "--tombstone", NULL) == -1) {
+              char *cwd; printf("CWD = %s\n", (cwd = getcwd(NULL, 0)) ? cwd : "unknown"), free(cwd);
+              perror("execl failed");
+          }
+        }
+      }
+      else if (e.type == SDL_QUIT) {
+            SDL_Quit();
+            exit(0);
+        }
+    }
+    SDL_Delay(10);
+
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderClear(renderer);
+
+    int y = 20;
+
+    draw_kv(renderer, font, 20, y+=20, "mission_id", "%s", mission_id);
+    draw_kv(renderer, font, 20, y+=20, "robot_id", "%s", robot_id);
+    draw_kv(renderer, font, 20, y+=20, "mission_type", "%s", mission_type);
+    draw_kv(renderer, font, 20, y+=20, "start_time", "%s", start_time);
+    draw_kv(renderer, font, 20, y+=20, "end_time", "%s", end_time);
+
+    draw_kv(renderer, font, 20, y+=20, "moves_left_turn", "%s", m_left);
+    draw_kv(renderer, font, 20, y+=20, "moves_right_turn", "%s", m_right);
+    draw_kv(renderer, font, 20, y+=20, "moves_straight", "%s", m_straight);
+    draw_kv(renderer, font, 20, y+=20, "moves_reverse", "%s", m_reverse);
+    draw_kv(renderer, font, 20, y+=20, "moves_total", "%s", m_total);
+
+    draw_kv(renderer, font, 20, y+=20, "distance_traveled", "%s", distance);
+    draw_kv(renderer, font, 20, y+=20, "duration_seconds", "%s", duration_seconds);
+
+    draw_kv(renderer, font, 20, y+=20, "mission_result", "%s", mission_result);
+    draw_kv(renderer, font, 20, y+=20, "abort_reason", "%s", abort_reason);
+
+
+    SDL_RenderPresent(renderer);
+
+  }
   return 0;
 #endif
 }
