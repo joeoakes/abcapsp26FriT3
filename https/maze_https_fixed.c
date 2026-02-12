@@ -6,7 +6,7 @@
 #include <string.h>
 #include <time.h>
 
-#define DEFAULT_PORT 8443
+#define DEFAULT_PORT 8449
 
 /* --- Helper to load file content into memory (REQUIRED for MHD SSL) --- */
 char *load_file(const char *filename) {
