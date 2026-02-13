@@ -19,7 +19,7 @@
 #define MAZE_H 15   // number of cells vertically
 #define CELL   32   // pixels per cell
 #define PAD    16   // window padding around maze
-#define URL_ENDPOINT "https://localhost:8443/move"
+#define URL_ENDPOINT "https://10.170.8.101:8449/move"
 #define JSON_BUFFER_SIZE 1024
 
 
