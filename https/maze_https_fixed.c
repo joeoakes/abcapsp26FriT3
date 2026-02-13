@@ -93,7 +93,7 @@ static int handle_post(void *cls,
     if (!db_name) db_name = "maze";
     
     const char *col_name = getenv("MONGO_COL");
-    if (!col_name) col_name = "moves";
+    if (!col_name) col_name = "team3f_moves";
 
     mongoc_collection_t *col = mongoc_client_get_collection(client, db_name, col_name);
 
