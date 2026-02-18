@@ -8,6 +8,10 @@
 
 #define DEFAULT_PORT 8449
 
+const char *uri_str;
+const char *db_name;
+const char *col_name;
+
 /* --- Helper to load file content into memory (REQUIRED for MHD SSL) --- */
 char *load_file(const char *filename) {
     FILE *f = fopen(filename, "rb");
@@ -84,15 +88,15 @@ static int handle_post(void *cls,
     get_utc_iso8601(ts, sizeof(ts));
     BSON_APPEND_UTF8(doc, "received_at", ts);
 
-    const char *uri_str = getenv("MONGO_URI");
+    uri_str = getenv("MONGO_URI");
     if (!uri_str) uri_str = "mongodb://localhost:27017";
 
     mongoc_client_t *client = mongoc_client_new(uri_str);
     
-    const char *db_name = getenv("MONGO_DB");
+    db_name = getenv("MONGO_DB");
     if (!db_name) db_name = "maze";
     
-    const char *col_name = getenv("MONGO_COL");
+    col_name = getenv("MONGO_COL");
     if (!col_name) col_name = "team3fmoves";
 
     mongoc_collection_t *col = mongoc_client_get_collection(client, db_name, col_name);
@@ -154,7 +158,23 @@ int main(void) {
         return 1;
     }
 
-    printf("HTTPS server listening on https://localhost:%d/move\n", DEFAULT_PORT);
+    uri_str = getenv("MONGO_URI");
+    if (!uri_str) uri_str = "mongodb://localhost:27017";
+
+    db_name = getenv("MONGO_DB");
+    if (!db_name) db_name = "maze";
+
+    col_name = getenv("MONGO_COL");
+    if (!col_name) col_name = "team3fmoves";
+
+    printf("----------------------------------------------------------------------\n");
+    printf("HTTPS server listening on https://localhost:%d\n", DEFAULT_PORT);
+    printf("Database: MongoDB\n");
+    printf("MongoDB URI: %s\n", uri_str);
+    printf("Database: %s\n", db_name);
+    printf("Collection: %s\n", col_name);
+    printf("Post JSON to /move\n");
+    printf("----------------------------------------------------------------------\n");
     getchar(); 
 
     MHD_stop_daemon(daemon);

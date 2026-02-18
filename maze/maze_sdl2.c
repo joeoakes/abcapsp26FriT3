@@ -493,14 +493,24 @@ int load_maze_grid(const char *path)
 }
 
 int main(int argc, char** argv) {
-  redisContext *c = redisConnect("127.0.0.1", 6379);
+  char *REDIS_HOST = "127.0.0.1";
+  int REDIS_PORT = 6379;
+  redisContext *c = redisConnect(REDIS_HOST, REDIS_PORT);
+  char mission_id[128] = "TEST_MISSION";  // default
+  char robot_id[128] = "TEST_ROBOT";      // default
+  char mission_type[128] = "patrol";      // default
 
   if (c == NULL || c->err) {
-      if (c) printf("Redis error: %s\n", c->errstr);
+      if (c) printf("Redis error: %s\n", REDIS_HOST);
       else printf("Can't allocate redis context\n");
       return 1;
   }
-  printf("Connected to Redis\n");
+  printf("-----------------------------------------------\n");
+  printf("Database: Redis\n");
+  printf("Redis Host: %s\n", REDIS_HOST);
+  printf("Redis Port: %d\n", REDIS_PORT);
+  printf("Key: mission:%s:summary\n", mission_id);
+  printf("-----------------------------------------------\n");
 
 int tombstone_mode = 0;
 
@@ -509,10 +519,6 @@ for (int i = 1; i < argc; i++) {
         tombstone_mode = 1;
     }
 }
-
-  char mission_id[128] = "TEST_MISSION";  // default
-  char robot_id[128] = "TEST_ROBOT";      // default
-  char mission_type[128] = "patrol";      // default
   time_t start_time = time(NULL);
   time_t end_time = time(NULL);
   int moves_left_turn = 0;
