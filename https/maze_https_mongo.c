@@ -168,7 +168,7 @@ int main(void) {
     if (!col_name) col_name = "team3fmoves";
 
     printf("----------------------------------------------------------------------\n");
-    printf("HTTPS server listening on https://localhost:%d\n", DEFAULT_PORT);
+    printf("HTTPS server listening on https://0.0.0.0:%d\n", DEFAULT_PORT);
     printf("Database: MongoDB\n");
     printf("MongoDB URI: %s\n", uri_str);
     printf("Database: %s\n", db_name);
