@@ -320,8 +320,8 @@ int main(void) {
         return 1;
     }
 
-    const char *cert_path = "certs/server.crt";
-    const char *key_path  = "certs/server.key";
+    const char *cert_path = "certs/server_ai.crt";
+    const char *key_path  = "certs/server_ai.key";
 
     /* 1. LOAD CERT KEY INTO MEMORY BUFFERS */
     char *key_pem = load_file(key_path);
