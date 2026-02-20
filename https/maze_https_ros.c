@@ -45,7 +45,7 @@ static void get_utc_iso8601(char *buf, size_t len) {
 #include <ctype.h>  // for isspace
 
 // --- Example movement functions ---
-void move_forward()  { system(void move_forward()  { system("ros2 topic pub -r 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.15}, angular: {z: 0.0}}\""); }
+void move_forward()  { system("ros2 topic pub -r 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.15}, angular: {z: 0.0}}\""); }
 void move_backward() { printf("Moving backward\n"); }
 void move_left()     { printf("Moving left\n"); }
 void move_right()    { printf("Moving right\n"); }
