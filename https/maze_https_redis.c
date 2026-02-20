@@ -145,12 +145,6 @@ if (!doc) {
     return ret;
 }
 
-
-    if (!doc) {
-        fprintf(stderr, "JSON parse error: %s\n", error.message);
-        return MHD_NO;
-    }
-
     const char *mission_id = NULL;
     const char *robot_id = NULL;
     const char *mission_type = NULL;
@@ -202,8 +196,24 @@ if (!doc) {
 
     if (!mission_id || !robot_id || !mission_type) {
         fprintf(stderr, "Missing required fields\n");
+
+        const char *response = "{\"error\":\"missing required fields\"}";
+
+        struct MHD_Response *resp =
+            MHD_create_response_from_buffer(strlen(response),
+                                            (void *)response,
+                                            MHD_RESPMEM_PERSISTENT);
+
+        int ret = MHD_queue_response(connection, MHD_HTTP_BAD_REQUEST, resp);
+
+        MHD_destroy_response(resp);
+
         bson_destroy(doc);
-        return MHD_NO;
+        free(ci->data);
+        free(ci);
+        *con_cls = NULL;
+
+        return ret;
     }
 
     if (!redis) {
@@ -223,7 +233,7 @@ if (!doc) {
     /* Store in Redis */
     redisReply *reply = redisCommand(
         redis,
-        "HSET mission:%s:summary "
+        "HSET team3fmission:%s:summary "
         "robot_id %s "
         "mission_type %s "
         "start_time %ld "
@@ -255,11 +265,15 @@ if (!doc) {
     );
 
     if (!reply)
+    {
         fprintf(stderr, "Redis HSET failed\n");
+    }
     else
+    {
         printf("Stored mission %s in Redis\n", mission_id);
+        freeReplyObject(reply);
+    }
 
-    freeReplyObject(reply);
     bson_destroy(doc);
 
     /* Send HTTP response */
