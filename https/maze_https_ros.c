@@ -42,6 +42,25 @@ static void get_utc_iso8601(char *buf, size_t len) {
     strftime(buf, len, "%Y-%m-%dT%H:%M:%SZ", &tm);
 }
 
+#include <ctype.h>  // for isspace
+
+// --- Example movement functions ---
+void move_forward()  { printf("Moving forward\n"); }
+void move_backward() { printf("Moving backward\n"); }
+void move_left()     { printf("Moving left\n"); }
+void move_right()    { printf("Moving right\n"); }
+
+// --- Helper to trim whitespace ---
+char* trim_whitespace(char* str) {
+    while(isspace((unsigned char)*str)) str++;
+    if(*str == 0) return str;
+    char *end = str + strlen(str) - 1;
+    while(end > str && isspace((unsigned char)*end)) end--;
+    end[1] = '\0';
+    return str;
+}
+
+// --- Handle POST request ---
 static int handle_post(void *cls,
                        struct MHD_Connection *connection,
                        const char *url,
@@ -74,12 +93,32 @@ static int handle_post(void *cls,
         return MHD_YES;
     }
 
+    // --- Parse move_dir from JSON body (very basic) ---
+    char *move_dir = NULL;
+    char *found = strstr(ci->data, "\"move_dir\"");
+    if (found) {
+        // Skip to the ':' and then the value
+        char *colon = strchr(found, ':');
+        if (colon) {
+            colon++; // move past ':'
+            while(isspace((unsigned char)*colon) || *colon=='\"') colon++;
+            char *end = colon;
+            while(*end && *end != '\"' && *end != ',' && *end != '}') end++;
+            *end = '\0';
+            move_dir = trim_whitespace(colon);
+        }
+    }
 
-    char ts[64];
-    get_utc_iso8601(ts, sizeof(ts));
-
-
-    //mongoc_collection_insert_one(col, doc, NULL, NULL, &error);
+    // --- Call movement function based on move_dir ---
+    if (move_dir) {
+        if (strcmp(move_dir, "forward") == 0) move_forward();
+        else if (strcmp(move_dir, "backward") == 0) move_backward();
+        else if (strcmp(move_dir, "left") == 0) move_left();
+        else if (strcmp(move_dir, "right") == 0) move_right();
+        else printf("Unknown move_dir: %s\n", move_dir);
+    } else {
+        printf("move_dir not provided in request\n");
+    }
 
     const char *response = "{\"status\":\"ok\"}";
     struct MHD_Response *resp =
