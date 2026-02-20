@@ -1,5 +1,4 @@
 #include <microhttpd.h>
-#include <bson/bson.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
