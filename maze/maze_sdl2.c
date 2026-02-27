@@ -19,8 +19,9 @@
 #define MAZE_H 15   // number of cells vertically
 #define CELL   32   // pixels per cell
 #define PAD    16   // window padding around maze
-#define URL_ENDPOINT "https://10.170.8.101:8449/move"
-#define JSON_BUFFER_SIZE 1024
+#define URL_ENDPOINT_LOGGING "https://10.170.8.130:8449/move"
+#define URL_ENDPOINT_MP "https://10.170.8.121:8449/move"
+#define JSON_BUFFER_SIZE 4096
 
 
 // Wall bitmask for each cell
@@ -253,6 +254,7 @@ void create_player_move_json(
     int pos_y,
     bool goal_reached,
     const char *timestamp,
+    const char *move_dir,
     char *output_buffer, // pass in a pre-allocated buffer
     size_t buffer_size
 ) {
@@ -260,7 +262,7 @@ void create_player_move_json(
         output_buffer, buffer_size,
         "{"
             "\"event_type\": \"%s\","
-            "\"input\": {\"device\": \"%s\", \"move_sequence\": %d},"
+            "\"input\": {\"device\": \"%s\", \"move_sequence\": %d, \"move_dir\": \"%s\"},"
             "\"player\": {\"position\": {\"x\": %d, \"y\": %d}},"
             "\"goal_reached\": %s,"
             "\"timestamp\": \"%s\""
@@ -268,11 +270,67 @@ void create_player_move_json(
         event_type,
         device,
         move_sequence,
+        move_dir,
         pos_x,
         pos_y,
         goal_reached ? "true" : "false",
         timestamp
     );
+}
+
+char* create_mission_summary_json(
+    const char* mission_id,
+    const char* robot_id,
+    const char* mission_type,
+    long start_time,
+    long end_time,
+    int moves_left_turn,
+    int moves_right_turn,
+    int moves_straight,
+    int moves_reverse,
+    int moves_total,
+    double distance_traveled,
+    long duration_seconds,
+    const char* mission_result,
+    const char* abort_reason)
+{
+    char* json = malloc(4096);
+    if (!json) return NULL;
+
+    snprintf(json, 4096,
+        "{"
+        "\"mission_id\":\"%s\","
+        "\"robot_id\":\"%s\","
+        "\"mission_type\":\"%s\","
+        "\"start_time\":%ld,"
+        "\"end_time\":%ld,"
+        "\"moves_left_turn\":%d,"
+        "\"moves_right_turn\":%d,"
+        "\"moves_straight\":%d,"
+        "\"moves_reverse\":%d,"
+        "\"moves_total\":%d,"
+        "\"distance_traveled\":%.2f,"
+        "\"duration_seconds\":%ld,"
+        "\"mission_result\":\"%s\","
+        "\"abort_reason\":\"%s\""
+        "}",
+        mission_id,
+        robot_id,
+        mission_type,
+        start_time,
+        end_time,
+        moves_left_turn,
+        moves_right_turn,
+        moves_straight,
+        moves_reverse,
+        moves_total,
+        distance_traveled,
+        duration_seconds,
+        mission_result,
+        abort_reason
+    );
+
+    return json;
 }
 
 void print_pretty_json(const char *json_str) {
@@ -698,40 +756,67 @@ for (int i = 1; i < argc; i++) {
     bool hasMoved;
     while (SDL_PollEvent(&e)) {
       hasMoved = false;
+
       if (e.type == SDL_QUIT) running = false;
 
       if (e.type == SDL_KEYDOWN) {
         SDL_Keycode k = e.key.keysym.sym;
 
+        end_time = time(NULL);
+        redisReply *reply = redisCommand(
+          c,
+          "HSET mission:%s:summary "
+          "end_time %ld "
+          "moves_left_turn %d "
+          "moves_right_turn %d "
+          "moves_straight %d "
+          "moves_reverse %d "
+          "moves_total %d "
+          "distance_traveled %.2f "
+          "duration_seconds %ld "
+          "mission_result %s "
+          "abort_reason %s",
+          mission_id,
+          end_time,                  // time_t or 0
+          moves_left_turn,                         // moves_left_turn
+          moves_right_turn,                         // moves_right_turn
+          moves_straight,                         // moves_straight
+          moves_reverse,                         // moves_reverse
+          moves_left_turn + moves_right_turn + moves_straight + moves_reverse,   // moves_total
+          sqrt(px*px + py*py),                       // distance_traveled
+          end_time - start_time,                        // duration_seconds
+          won ? "success" : "aborted",                 // mission_result
+          "user exited"              // abort_reason
+        );
+
+        char* json = create_mission_summary_json(
+        mission_id,
+        robot_id,
+        mission_type,
+        start_time,
+        end_time,
+        moves_left_turn,
+        moves_right_turn,
+        moves_straight,
+        moves_reverse,
+        moves_left_turn + moves_right_turn + moves_straight + moves_reverse,
+        sqrt(px*px + py*py),
+        end_time - start_time,
+        won ? "success" : "aborted",
+        "user exited"
+    );
+
+    post_json_to_move(
+        "https://10.170.8.109:8449/move",
+        json
+    );
+
+    //free(json);
+
         if (k == SDLK_ESCAPE) running = false;
 
         if (k == SDLK_l) {
-          end_time = time(NULL);
-          redisReply *reply = redisCommand(
-            c,
-            "HSET mission:%s:summary "
-            "end_time %ld "
-            "moves_left_turn %d "
-            "moves_right_turn %d "
-            "moves_straight %d "
-            "moves_reverse %d "
-            "moves_total %d "
-            "distance_traveled %.2f "
-            "duration_seconds %ld "
-            "mission_result %s "
-            "abort_reason %s",
-            mission_id,
-            end_time,                  // time_t or 0
-            moves_left_turn,                         // moves_left_turn
-            moves_right_turn,                         // moves_right_turn
-            moves_straight,                         // moves_straight
-            moves_reverse,                         // moves_reverse
-            moves_left_turn + moves_right_turn + moves_straight + moves_reverse,   // moves_total
-            sqrt(px*px + py*py),                       // distance_traveled
-            end_time - start_time,                        // duration_seconds
-            won ? "success" : "aborted",                 // mission_result
-            "user exited"              // abort_reason
-          );
+          
           if (!save_maze_data("maze_data.json",
                     mission_id,
                     px,
@@ -741,7 +826,7 @@ for (int i = 1; i < argc; i++) {
             }
           execl("./missions/mission_dashboard", "mission_dashboard", mission_id, NULL);
         }
-
+        char *last_turn = " ";
         if (k == SDLK_r) {
           regenerate(&px, &py, win);
           save_maze_grid("maze_grid.dat");
@@ -756,18 +841,22 @@ for (int i = 1; i < argc; i++) {
               if (orientation == 'N')
               {
                 moves_straight += 1;
+                last_turn = "forward";
               }
               else if (orientation == 'E')
               {
                 moves_left_turn += 1;
+                last_turn = "left";
               }
               else if (orientation == 'S')
               {
                 moves_reverse += 1;
+                last_turn = "backward";
               }
               else if (orientation == 'W')
               {
                 moves_right_turn += 1;
+                last_turn = "right";
               }
               orientation = 'N';
             }
@@ -780,18 +869,22 @@ for (int i = 1; i < argc; i++) {
               if (orientation == 'N')
               {
                 moves_right_turn += 1;
+                last_turn = "right";
               }
               else if (orientation == 'E')
               {
                 moves_straight += 1;
+                last_turn = "forward";
               }
               else if (orientation == 'S')
               {
                 moves_left_turn += 1;
+                last_turn = "left";
               }
               else if (orientation == 'W')
               {
                 moves_reverse += 1;
+                last_turn = "backward";
               }
               orientation = 'E';
             }
@@ -804,18 +897,22 @@ for (int i = 1; i < argc; i++) {
               if (orientation == 'N')
               {
                 moves_reverse += 1;
+                last_turn = "backward";
               }
               else if (orientation == 'E')
               {
                 moves_right_turn += 1;
+                last_turn = "right";
               }
               else if (orientation == 'S')
               {
                 moves_straight += 1;
+                last_turn = "forward";
               }
               else if (orientation == 'W')
               {
                 moves_left_turn += 1;
+                last_turn = "left";
               }
               orientation = 'S';
             }
@@ -828,23 +925,26 @@ for (int i = 1; i < argc; i++) {
               if (orientation == 'N')
               {
                 moves_left_turn += 1;
+                last_turn = "left";
               }
               else if (orientation == 'E')
               {
                 moves_reverse += 1;
+                last_turn = "backward";
               }
               else if (orientation == 'S')
               {
                 moves_right_turn += 1;
+                last_turn = "right";
               }
               else if (orientation == 'W')
               {
                 moves_straight += 1;
+                last_turn = "forward";
               }
               orientation = 'W';
             }
           }
-          
 
           if (px == MAZE_W - 1 && py == MAZE_H - 1) {
             won = true;
@@ -871,10 +971,12 @@ for (int i = 1; i < argc; i++) {
             py,
             won,
             ts,
+            last_turn,
             json,
             JSON_BUFFER_SIZE
             );
-            post_json_to_move(URL_ENDPOINT, json);
+            post_json_to_move(URL_ENDPOINT_LOGGING, json);
+            post_json_to_move(URL_ENDPOINT_MP, json);
             print_pretty_json(json);}
         }
       }
