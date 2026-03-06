@@ -34,6 +34,9 @@ typedef struct {
 
 static Cell g[MAZE_H][MAZE_W];
 
+
+#include "astar.h"
+
 static inline bool in_bounds(int x, int y) {
   return (x >= 0 && x < MAZE_W && y >= 0 && y < MAZE_H);
 }
@@ -229,8 +232,8 @@ int post_json_to_move(const char* url, const char* json_data) {
     curl_easy_setopt(curl, CURLOPT_SSLKEY,  "certs/client.key");
 
     // Timeout settings
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 1L);  // 1 seconds to connect
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 2L);        // 2 seconds total
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 100);  // 100ms to connect
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 200);        // 200ms total
 
     // Optional: verbose output for debugging TLS handshake
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
@@ -829,6 +832,15 @@ for (int i = 1; i < argc; i++) {
                 fprintf(stderr, "Failed to write maze_data.json\n");
             }
           execl("./missions/mission_dashboard", "mission_dashboard", mission_id, NULL);
+        }
+        if (k == SDLK_n)
+        {
+          char move = astar_next_move(g, px, py);
+
+          if(move=='N') try_move(&px,&py,0,-1);
+          if(move=='S') try_move(&px,&py,0,1);
+          if(move=='E') try_move(&px,&py,1,0);
+          if(move=='W') try_move(&px,&py,-1,0);
         }
         char *last_turn = " ";
         if (k == SDLK_r) {
