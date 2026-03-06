@@ -120,26 +120,19 @@ static int handle_post(void *cls,
     int ret = MHD_queue_response(connection, MHD_HTTP_OK, resp);
     MHD_destroy_response(resp);
 
-    const union MHD_ConnectionInfo *info =
-    MHD_get_connection_info(connection, MHD_CONNECTION_INFO_GNUTLS_SESSION);
+    const union MHD_ConnectionInfo *info;
+    info = MHD_get_connection_info(connection, MHD_CONNECTION_INFO_SSL_CERTIFICATE);
 
-    if (info && info->gnutls_session) {
-        const gnutls_datum_t *cert_list;
-        unsigned int cert_list_size;
-
-        cert_list = gnutls_certificate_get_peers(info->gnutls_session, &cert_list_size);
-
-        if (cert_list && cert_list_size > 0) {
-            printf("Client certificate received (size: %u bytes)\n",
-                cert_list[0].size);
-        } else {
-            printf("No client certificate provided\n");
-        }
+    if (info && info->ssl_certificate) {
+        printf("Client certificate received (DER size: %lu bytes)\n",
+            (unsigned long)info->ssl_certificate->size);
+    } else {
+        printf("No client certificate provided\n");
     }
 
-    free(ci->data);
-    free(ci);
-    *con_cls = NULL;
+        free(ci->data);
+        free(ci);
+        *con_cls = NULL;
 
     return ret;
 }
