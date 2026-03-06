@@ -20,7 +20,7 @@
 #define CELL   32   // pixels per cell
 #define PAD    16   // window padding around maze
 #define URL_ENDPOINT_LOGGING "https://10.170.8.130:8449/move"
-#define URL_ENDPOINT_MP "https://10.170.8.121:8449/move"
+#define URL_ENDPOINT_MP "https://10.170.8.226:8449/move"
 #define JSON_BUFFER_SIZE 4096
 
 
@@ -223,6 +223,10 @@ int post_json_to_move(const char* url, const char* json_data) {
     // 2️⃣ Keep verification enabled (recommended)
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+
+    // client certificate (for mTLS)
+    curl_easy_setopt(curl, CURLOPT_SSLCERT, "certs/client.crt");
+    curl_easy_setopt(curl, CURLOPT_SSLKEY,  "certs/client.key");
 
     // Timeout settings
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 1L);  // 1 seconds to connect

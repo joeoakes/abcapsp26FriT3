@@ -124,6 +124,23 @@ static int handle_post(void *cls,
     free(ci);
     *con_cls = NULL;
 
+    const union MHD_ConnectionInfo *info =
+    MHD_get_connection_info(connection, MHD_CONNECTION_INFO_GNUTLS_SESSION);
+
+    if (info && info->gnutls_session) {
+        const gnutls_datum_t *cert_list;
+        unsigned int cert_list_size;
+
+        cert_list = gnutls_certificate_get_peers(info->gnutls_session, &cert_list_size);
+
+        if (cert_list && cert_list_size > 0) {
+            printf("Client certificate received (size: %u bytes)\n",
+                cert_list[0].size);
+        } else {
+            printf("No client certificate provided\n");
+        }
+    }
+
     return ret;
 }
 
