@@ -120,10 +120,6 @@ static int handle_post(void *cls,
     int ret = MHD_queue_response(connection, MHD_HTTP_OK, resp);
     MHD_destroy_response(resp);
 
-    free(ci->data);
-    free(ci);
-    *con_cls = NULL;
-
     const union MHD_ConnectionInfo *info =
     MHD_get_connection_info(connection, MHD_CONNECTION_INFO_GNUTLS_SESSION);
 
@@ -140,6 +136,10 @@ static int handle_post(void *cls,
             printf("No client certificate provided\n");
         }
     }
+
+    free(ci->data);
+    free(ci);
+    *con_cls = NULL;
 
     return ret;
 }
