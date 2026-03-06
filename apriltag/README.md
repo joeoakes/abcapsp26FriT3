@@ -1,6 +1,6 @@
 **How to run
 
-First run app.py 
+First run app.py while using ssh in the mini pupper
 
 Then open a tab set to http://10.170.8.226:5000 to view the feed**
 
