@@ -1,4 +1,5 @@
 #include <microhttpd.h>
+#include <gnutls/gnutls.h>
 #include <mongoc/mongoc.h>
 #include <bson/bson.h>
 #include <stdio.h>
@@ -120,14 +121,26 @@ static int handle_post(void *cls,
     int ret = MHD_queue_response(connection, MHD_HTTP_OK, resp);
     MHD_destroy_response(resp);
 
-    const union MHD_ConnectionInfo *info;
-    info = MHD_get_connection_info(connection, MHD_CONNECTION_INFO_SSL_CERTIFICATE);
+    const union MHD_ConnectionInfo *info = 
+    MHD_get_connection_info(connection, MHD_CONNECTION_INFO_GNUTLS_SESSION);
 
-    if (info && info->ssl_certificate) {
-        printf("Client certificate received (DER size: %lu bytes)\n",
-            (unsigned long)info->ssl_certificate->size);
+    if (!info || !info->tls_session) {
+        printf("No TLS session available.\n");
     } else {
-        printf("No client certificate provided\n");
+        unsigned int cert_list_size = 0;
+        const gnutls_datum_t *cert_list =
+            gnutls_certificate_get_peers(info->tls_session, &cert_list_size);
+
+        if (cert_list_size > 0 && cert_list != NULL) {
+            printf("Client certificate received! DER size: %u bytes\n", cert_list[0].size);
+
+            // Optional: Print first few bytes of certificate for debug
+            for (unsigned int i = 0; i < cert_list[0].size && i < 16; i++)
+                printf("%02X ", cert_list[0].data[i]);
+            printf("...\n");
+        } else {
+            printf("No client certificate sent by client.\n");
+        }
     }
 
         free(ci->data);
