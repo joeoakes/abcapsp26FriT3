@@ -578,7 +578,7 @@ int main(int argc, char** argv) {
   printf("Database: Redis\n");
   printf("Redis Host: %s\n", REDIS_HOST);
   printf("Redis Port: %d\n", REDIS_PORT);
-  printf("Key: mission:%s:summary\n", mission_id);
+  printf("Key: team3fmission:%s:summary\n", mission_id);
   printf("-----------------------------------------------\n");
 
 int tombstone_mode = 0;
@@ -642,7 +642,7 @@ for (int i = 1; i < argc; i++) {
   {
     redisReply *reply = redisCommand(
     c,
-    "HSET mission:%s:summary "
+    "HSET team3fmission:%s:summary "
     "robot_id %s "
     "mission_type %s "
     "start_time %ld "
@@ -694,7 +694,7 @@ for (int i = 1; i < argc; i++) {
 
 
     char key[128];
-    snprintf(key, sizeof(key), "mission:%s:summary", mission_id);
+    snprintf(key, sizeof(key), "team3fmission:%s:summary", mission_id);
 
     char *tmp;
 
@@ -772,7 +772,7 @@ for (int i = 1; i < argc; i++) {
         end_time = time(NULL);
         redisReply *reply = redisCommand(
           c,
-          "HSET mission:%s:summary "
+          "HSET team3fmission:%s:summary "
           "end_time %ld "
           "moves_left_turn %d "
           "moves_right_turn %d "
