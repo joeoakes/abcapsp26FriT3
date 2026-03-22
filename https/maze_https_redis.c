@@ -320,12 +320,13 @@ int main(void) {
         return 1;
     }
 
-    const char *cert_path = "certs/server_ai.crt";
-    const char *key_path  = "certs/server_ai.key";
+    const char *cert_path = "certs/server.crt";
+    const char *key_path  = "certs/server.key";
 
     /* 1. LOAD CERT KEY INTO MEMORY BUFFERS */
     char *key_pem = load_file(key_path);
     char *cert_pem = load_file(cert_path);
+    char *ca_pem = load_file("certs/ca.crt");
 
     if (!key_pem || !cert_pem) {
         fprintf(stderr, "Error: Could not read certs.\n");
@@ -345,6 +346,8 @@ int main(void) {
         &handle_post, NULL,
         MHD_OPTION_HTTPS_MEM_CERT, cert_pem,
         MHD_OPTION_HTTPS_MEM_KEY, key_pem,
+        MHD_OPTION_HTTPS_MEM_TRUST, ca_pem,
+        MHD_OPTION_HTTPS_REQUIRE_CLIENT_CERT, MHD_YES,
         MHD_OPTION_END);
 
     if (!daemon) {
@@ -369,6 +372,7 @@ int main(void) {
     
     free(key_pem);
     free(cert_pem);
+    free(ca_pem);
     mongoc_cleanup();
 
     if (redis)

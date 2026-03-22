@@ -222,7 +222,7 @@ int post_json_to_move(const char* url, const char* json_data) {
 
     // --- Self-signed certificate handling ---
     // 1️⃣ Point curl to your server cert
-    curl_easy_setopt(curl, CURLOPT_CAINFO, "certs/server.crt");
+    curl_easy_setopt(curl, CURLOPT_CAINFO, "certs/ca.crt");
     // 2️⃣ Keep verification enabled (recommended)
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
