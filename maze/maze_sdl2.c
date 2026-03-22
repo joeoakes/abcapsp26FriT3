@@ -232,8 +232,8 @@ int post_json_to_move(const char* url, const char* json_data) {
     curl_easy_setopt(curl, CURLOPT_SSLKEY,  "certs/client.key");
 
     // Timeout settings
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 100);  // 100ms to connect
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 200);        // 200ms total
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 500);  // 500ms to connect
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 1000);        // 1000ms total
 
     // Optional: verbose output for debugging TLS handshake
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
