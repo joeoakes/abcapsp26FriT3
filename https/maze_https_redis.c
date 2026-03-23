@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include <hiredis/hiredis.h>
+#include <gnutls/gnutls.h>
 
 #define DEFAULT_PORT 8449
 
@@ -74,6 +75,16 @@ static enum MHD_Result handle_post(void *cls,
 {
     (void)cls;
     (void)version;
+    const union MHD_ConnectionInfo *info =
+    MHD_get_connection_info(connection, MHD_CONNECTION_INFO_GNUTLS_SESSION);
+
+    unsigned int cert_list_size = 0;
+    const gnutls_datum_t *cert_list =
+        info ? gnutls_certificate_get_peers(info->tls_session, &cert_list_size) : NULL;
+
+    if (!cert_list || cert_list_size == 0) {
+        return MHD_NO;  // reject if no client cert
+    }
 
     if (strcmp(method, "POST") != 0 || strcmp(url, "/move") != 0)
         return MHD_NO;
@@ -347,7 +358,6 @@ int main(void) {
         MHD_OPTION_HTTPS_MEM_CERT, cert_pem,
         MHD_OPTION_HTTPS_MEM_KEY, key_pem,
         MHD_OPTION_HTTPS_MEM_TRUST, ca_pem,
-        MHD_OPTION_HTTPS_REQUIRE_CLIENT_CERT, MHD_YES,
         MHD_OPTION_END);
 
     if (!daemon) {
