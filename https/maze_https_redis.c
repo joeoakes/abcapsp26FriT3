@@ -306,6 +306,30 @@ if (!doc) {
     return ret;
 }
 
+static int enforce_client_cert(void *cls, struct MHD_Connection *connection,
+                               void **certs, size_t cert_cnt) {
+    (void)cls;
+    (void)certs;
+    (void)cert_cnt;
+
+    const union MHD_ConnectionInfo *info =
+        MHD_get_connection_info(connection, MHD_CONNECTION_INFO_GNUTLS_SESSION);
+    if (!info || !info->tls_session)
+        return MHD_NO; // no TLS session – reject
+
+    unsigned int status;
+    int ret = gnutls_certificate_verify_peers2(info->tls_session, &status);
+    if (ret < 0 || status != 0)
+        return MHD_NO; // verification failed – reject
+
+    unsigned int cert_list_size;
+    const gnutls_datum_t *cert_list =
+        gnutls_certificate_get_peers(info->tls_session, &cert_list_size);
+    if (!cert_list || cert_list_size == 0)
+        return MHD_NO; // no client certificate – reject
+
+    return MHD_YES; // accept connection
+}
 
 int main(void) {
     /* Connect to Redis once */
@@ -339,7 +363,7 @@ int main(void) {
     char *cert_pem = load_file(cert_path);
     char *ca_pem = load_file("certs/ca.crt");
 
-    if (!key_pem || !cert_pem) {
+    if (!key_pem || !cert_pem || !ca_pem) {
         fprintf(stderr, "Error: Could not read certs.\n");
         fprintf(stderr, "Please run: mkdir -p certs && openssl req -x509 -newkey rsa:4096 -keyout certs/server.key -out certs/server.crt -days 365 -nodes -subj '/CN=localhost'\n");
         if (redis)
@@ -359,7 +383,7 @@ int main(void) {
         MHD_OPTION_HTTPS_MEM_KEY, key_pem,
         MHD_OPTION_HTTPS_MEM_TRUST, load_file("certs/ca.crt"),  // CA that signed client certs
         //MHD_OPTION_HTTPS_CERT_CALLBACK, verify_client_cert, NULL,  // Enable client cert request
-        MHD_OPTION_HTTPS_REQUIRE_CLIENT_CERT, MHD_YES,
+        MHD_OPTION_HTTPS_CERT_CALLBACK, enforce_client_cert, NULL,
         MHD_OPTION_END);
 
     if (!daemon) {
