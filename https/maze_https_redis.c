@@ -358,6 +358,7 @@ int main(void) {
         MHD_OPTION_HTTPS_MEM_CERT, cert_pem,
         MHD_OPTION_HTTPS_MEM_KEY, key_pem,
         MHD_OPTION_HTTPS_MEM_TRUST, ca_pem,
+        MHD_OPTION_HTTPS_CERTIFICATE_REQUEST, GNUTLS_CERT_REQUIRE,
         MHD_OPTION_END);
 
     if (!daemon) {
