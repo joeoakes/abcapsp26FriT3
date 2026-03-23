@@ -383,7 +383,7 @@ int main(void) {
         MHD_OPTION_HTTPS_MEM_KEY, key_pem,
         MHD_OPTION_HTTPS_MEM_TRUST, load_file("certs/ca.crt"),  // CA that signed client certs
         //MHD_OPTION_HTTPS_CERT_CALLBACK, verify_client_cert, NULL,  // Enable client cert request
-        MHD_OPTION_HTTPS_CERT_CALLBACK, enforce_client_cert, NULL,
+        //MHD_OPTION_HTTPS_CERT_CALLBACK, enforce_client_cert, NULL,
         MHD_OPTION_END);
 
     if (!daemon) {
