@@ -1,7 +1,5 @@
 def retrieve(store, query):
-
     results = store.search(query)
-
-    context = "\n".join(results)
-    
-    return context
+    if not results:
+        return "No matching static documents were found."
+    return "\n".join(results)
