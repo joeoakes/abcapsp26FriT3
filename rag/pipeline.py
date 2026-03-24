@@ -16,6 +16,8 @@ for doc in docs:
 
 store.add(chunks)
 
+print(f"Loaded {len(docs)} docs and {len(chunks)} chunks")
+
 
 def rag_query(question, mission_id):
 
@@ -24,6 +26,8 @@ def rag_query(question, mission_id):
     dynamic_logs = get_recent_logs(mission_id)
 
     context = f"""
+
+
 STATIC KNOWLEDGE:
 {static_context}
 
@@ -46,7 +50,7 @@ Answer:
 """
 
     response = ollama.chat(
-        model="llama3",
+        model="llama3.2",
         messages=[{"role": "user", "content": prompt}]
     )
 
