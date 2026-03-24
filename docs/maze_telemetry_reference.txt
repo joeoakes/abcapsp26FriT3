@@ -1,0 +1,11 @@
+Maze mission summaries describe a robot run through a maze. A mission summary may include robot_id, mission_type, start_time, end_time, moves_left_turn, moves_right_turn, moves_straight, moves_reverse, moves_total, distance_traveled, duration_seconds, mission_result, and abort_reason.
+
+moves_left_turn counts successful left-turn moves.
+moves_right_turn counts successful right-turn moves.
+moves_straight counts successful forward moves.
+moves_reverse counts successful backward moves.
+moves_total is the total number of successful moves.
+distance_traveled is the total path distance traveled during the mission.
+duration_seconds is the total time spent in the mission.
+mission_result is typically success or aborted.
+abort_reason explains why the mission ended when it was not successful.

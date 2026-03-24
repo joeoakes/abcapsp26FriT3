@@ -1,7 +1,4 @@
-from rag.vector_store import VectorStore
-from rag.retrieve import retrieve
+from rag.pipeline import rag_query
 
-store = VectorStore()
-
-context = retrieve(store, "What telemetry does the robot send?")
-print(context)
+answer = rag_query("Summarize the current maze run.", "TEST_MISSION")
+print(answer)

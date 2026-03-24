@@ -8,7 +8,6 @@ from rag.logs import get_recent_logs
 store = VectorStore()
 
 docs = load_documents("docs")
-
 chunks = []
 
 for doc in docs:
@@ -16,18 +15,11 @@ for doc in docs:
 
 store.add(chunks)
 
-print(f"Loaded {len(docs)} docs and {len(chunks)} chunks")
-
-
 def rag_query(question, mission_id):
-
     static_context = retrieve(store, question)
-
     dynamic_logs = get_recent_logs(mission_id)
 
     context = f"""
-
-
 STATIC KNOWLEDGE:
 {static_context}
 

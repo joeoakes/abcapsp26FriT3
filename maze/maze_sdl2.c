@@ -594,6 +594,7 @@ for (int i = 1; i < argc; i++) {
   int moves_right_turn = 0;
   int moves_straight = 0;
   int moves_reverse = 0;
+  double distance_traveled = 0.0;
 
   
 
@@ -769,6 +770,7 @@ for (int i = 1; i < argc; i++) {
       if (e.type == SDL_KEYDOWN) {
         SDL_Keycode k = e.key.keysym.sym;
 
+        /*
         end_time = time(NULL);
         redisReply *reply = redisCommand(
           c,
@@ -817,10 +819,95 @@ for (int i = 1; i < argc; i++) {
         "https://10.170.8.109:8449/move",
         json
     );
+    */
 
     //free(json);
 
-        if (k == SDLK_ESCAPE) running = false;
+        if (k == SDLK_ESCAPE) {
+          end_time =time(NULL);
+
+          printf("ESC SAVE left=%d right=%d straight=%d reverse=%d total=%d distance=%.2f duration=%ld\n",
+                 moves_left_turn, 
+                 moves_right_turn, 
+                 moves_straight, 
+                 moves_reverse,
+                 moves_left_turn + moves_right_turn + moves_straight + moves_reverse,
+                 distance_traveled,
+                 end_time - start_time);
+
+          redisReply *reply = redisCommand(
+            c,
+            "HSET team3fmission:%s:summary "
+            "end_time %ld "
+            "moves_left_turn %d "
+            "moves_right_turn %d "
+            "moves_straight %d "
+            "moves_reverse %d "
+            "moves_total %d "
+            "distance_traveled %.2f "
+            "duration_seconds %ld " 
+            "mission_result %s "
+            "abort_reason %s",
+            mission_id,
+            end_time,                  // time_t or 0
+            moves_left_turn,                         // moves_left_turn
+            moves_right_turn,                         // moves_right_turn
+            moves_straight,                         // moves_straight
+            moves_reverse,                         // moves_reverse
+            moves_left_turn + moves_right_turn + moves_straight + moves_reverse,   //
+            distance_traveled,                       // distance_traveled
+            end_time - start_time,                        // duration_seconds
+            won ? "success" : "aborted",                 // mission_result
+            "user exited"              // abort_reason
+          );
+          if (reply) freeReplyObject(reply);
+          char*json = create_mission_summary_json(
+            mission_id,
+            robot_id,
+            mission_type,
+            start_time,
+            end_time,
+            moves_left_turn,
+            moves_right_turn,
+            moves_straight,
+            moves_reverse,
+            moves_left_turn + moves_right_turn + moves_straight + moves_reverse,
+            distance_traveled,
+            end_time - start_time,
+            won ? "success" : "aborted",
+            "user exited"
+        );
+
+        if (json) {
+          post_json_to_move(
+            "https://10.170.8.109:8449/move",
+            json
+          );
+          free(json);
+
+        }
+
+        printf(
+          "Mission %s for robot %s was a %s mission."
+          "It recorded %d total moves, including %d left turns, %d right turns, %d straight moves, and %d reverse moves."
+          "The robot traveled a distance of %.2f units over %ld seconds.\n",
+          "The mission result was: %s. Abort reason: %s.\n",
+          mission_id,
+          robot_id,
+          mission_type,
+          moves_left_turn + moves_right_turn + moves_straight + moves_reverse,
+          moves_left_turn,
+          moves_right_turn,
+          moves_straight,
+          moves_reverse,
+          distance_traveled,
+          end_time - start_time,
+          won ? "success" : "aborted",
+          won ? "user exited" : "none"
+        );
+
+          running = false;
+        }
 
         if (k == SDLK_l) {
           
@@ -979,6 +1066,7 @@ for (int i = 1; i < argc; i++) {
               char ts[32];
               strftime(ts, sizeof(ts), "%Y-%m-%dT%H:%M:%SZ", &tmbuf);
             moveSequence += 1;
+            distance_traveled += 1.0; // assuming each move is 1 unit; adjust if needed
             create_player_move_json(
             "player_move",
             "joystick",
@@ -993,7 +1081,56 @@ for (int i = 1; i < argc; i++) {
             );
             post_json_to_move(URL_ENDPOINT_LOGGING, json);
             post_json_to_move(URL_ENDPOINT_MP, json);
-            print_pretty_json(json);}
+            print_pretty_json(json);
+
+            printf("ABOUT TO UPDATE REDIS SUMMARY\n");
+
+            
+            end_time = time(NULL);
+            redisReply *reply = redisCommand(
+            c,
+            "HSET team3fmission:%s:summary "
+            "end_time %ld "
+            "moves_left_turn %d "
+            "moves_right_turn %d "  
+            "moves_straight %d "
+            "moves_reverse %d "
+            "moves_total %d "
+            "distance_traveled %.2f "
+            "duration_seconds %ld "
+            "mission_result %s "
+            "abort_reason %s",
+            mission_id,
+            end_time,                  // time_t or 0
+            moves_left_turn,                         // moves_left_turn
+            moves_right_turn,                         // moves_right_turn
+            moves_straight,                         // moves_straight
+            moves_reverse,                         // moves_reverse
+            moves_left_turn + moves_right_turn + moves_straight + moves_reverse,   //
+            distance_traveled,                       // distance_traveled
+            end_time - start_time,                        // duration_seconds
+            won ? "success" : "in_progress",                 // mission_result
+            "player moved"              // abort_reason
+            );
+            if (!reply) {              
+              printf("Failed to update Redis summary\n");
+            }
+            else {
+              printf(
+                "Updated Redis summary: end_time=%ld, moves_left_turn=%d, moves_right_turn=%d, moves_straight=%d, moves_reverse=%d, moves_total=%d, distance_traveled=%.2f, duration_seconds=%ld, mission_result=%s\n",
+                end_time,
+                moves_left_turn,
+                moves_right_turn,
+                moves_straight,
+                moves_reverse,
+                moves_left_turn + moves_right_turn + moves_straight + moves_reverse,
+                distance_traveled,
+                end_time - start_time,
+                won ? "success" : "in_progress"
+              );
+              freeReplyObject(reply);
+            }
+            }
         }
       }
     }
