@@ -768,6 +768,7 @@ for (int i = 1; i < argc; i++) {
 
       if (e.type == SDL_KEYDOWN) {
         SDL_Keycode k = e.key.keysym.sym;
+        char *last_turn = " ";
 
         /*
         end_time = time(NULL);
@@ -889,7 +890,7 @@ for (int i = 1; i < argc; i++) {
         printf(
           "Mission %s for robot %s was a %s mission."
           "It recorded %d total moves, including %d left turns, %d right turns, %d straight moves, and %d reverse moves."
-          "The robot traveled a distance of %.2f units over %ld seconds.\n",
+          "The robot traveled a distance of %.2f units over %ld seconds.\n"
           "The mission result was: %s. Abort reason: %s.\n",
           mission_id,
           robot_id,
@@ -902,7 +903,7 @@ for (int i = 1; i < argc; i++) {
           distance_traveled,
           end_time - start_time,
           won ? "success" : "aborted",
-          won ? "user exited" : "none"
+          won ? "none" : "user exited"
         );
 
           running = false;
@@ -922,13 +923,86 @@ for (int i = 1; i < argc; i++) {
         if (k == SDLK_n)
         {
           char move = astar_next_move(g, px, py);
-
-          if(move=='N') try_move(&px,&py,0,-1);
-          if(move=='S') try_move(&px,&py,0,1);
-          if(move=='E') try_move(&px,&py,1,0);
-          if(move=='W') try_move(&px,&py,-1,0);
+          if (move == 'N') {
+            hasMoved = try_move(&px, &py, 0, -1);
+            if (hasMoved) {
+              if (orientation == 'N') {
+                moves_straight += 1;
+                last_turn = "forward";
+              } else if (orientation == 'E') {
+                moves_left_turn += 1;
+                last_turn = "left";
+              } else if (orientation == 'S') {
+                moves_reverse += 1;
+                last_turn = "backward";
+              } else if (orientation == 'W') {
+                moves_right_turn += 1;
+                last_turn = "right";
+              }
+              orientation = 'N';
+            }
+          }
+          else if (move == 'E') {
+            hasMoved = try_move(&px, &py, 1, 0);
+            if (hasMoved) {
+              if (orientation == 'N') {
+                moves_right_turn += 1;
+                last_turn = "right";
+              } else if (orientation == 'E') {
+                moves_straight += 1;
+                last_turn = "forward";
+              } else if (orientation == 'S') {
+                moves_left_turn += 1;
+                last_turn = "left";
+              } else if (orientation == 'W') {
+                moves_reverse += 1;
+                last_turn = "backward";
+              }
+              orientation = 'E';
+            }
+          }
+          else if (move =='S') {
+            hasMoved = try_move(&px, &py, 0, 1);
+            if (hasMoved) {
+              if (orientation == 'N') {
+                moves_reverse += 1;
+                last_turn = "backward";
+              } else if (orientation == 'E') {
+                moves_right_turn += 1;
+                last_turn = "right";
+              } else if (orientation == 'S') {
+                moves_straight += 1;
+                last_turn = "forward";
+              } else if (orientation == 'W') {
+                moves_left_turn += 1;
+                last_turn = "left";
+              }
+              orientation = 'S';
+            }
+          }
+          else if (move == 'W') {
+            hasMoved = try_move(&px, &py, -1, 0);
+            if (hasMoved) {
+              if (orientation == 'N') {
+                moves_left_turn += 1;
+                last_turn = "left";
+              } else if (orientation == 'E') {
+                moves_reverse += 1;
+                last_turn = "backward";
+              } else if (orientation == 'S') {
+                moves_right_turn += 1;
+                last_turn = "right";
+              } else if (orientation == 'W') {
+                moves_straight += 1;
+                last_turn = "forward";
+              }
+              orientation = 'W';
+            }
+          }
         }
-        char *last_turn = " ";
+
+        
+        
         if (k == SDLK_r) {
           regenerate(&px, &py, win);
           save_maze_grid("maze_grid.dat");
