@@ -22,6 +22,7 @@
 #define URL_ENDPOINT_LOGGING "https://10.170.8.130:8449/move"
 #define URL_ENDPOINT_MP "https://10.170.8.226:8449/move"
 #define JSON_BUFFER_SIZE 4096
+CURL *curl;
 
 
 // Wall bitmask for each cell
@@ -198,17 +199,10 @@ static void regenerate(int* px, int* py, SDL_Window* win) {
 }
 
 int post_json_to_move(const char* url, const char* json_data) {
-    CURL* curl;
     CURLcode res;
     int success = 0;
 
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-    curl = curl_easy_init();
-    if (!curl) {
-        fprintf(stderr, "Failed to initialize curl\n");
-        curl_global_cleanup();
-        return 0;
-    }
+    curl_easy_reset(curl);
 
     struct curl_slist* headers = NULL;
     headers = curl_slist_append(headers, "Content-Type: application/json");
@@ -246,8 +240,6 @@ int post_json_to_move(const char* url, const char* json_data) {
     }
 
     curl_slist_free_all(headers);
-    curl_easy_cleanup(curl);
-    curl_global_cleanup();
     return success;
 }
 
@@ -562,6 +554,13 @@ int load_maze_grid(const char *path)
 }
 
 int main(int argc, char** argv) {
+  curl_global_init(CURL_GLOBAL_DEFAULT);
+  curl = curl_easy_init();
+  if (!curl) {
+      fprintf(stderr, "Failed to initialize curl\n");
+      curl_global_cleanup();
+      return 0;
+  }
   char *REDIS_HOST = "127.0.0.1";
   int REDIS_PORT = 6379;
   redisContext *c = redisConnect(REDIS_HOST, REDIS_PORT);
