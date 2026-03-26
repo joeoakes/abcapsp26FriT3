@@ -71,7 +71,7 @@ def api_ask():
         dynamic_logs = get_recent_logs(mission_id)
         context = 'STATIC KNOWLEDGE:\n' + str(static_context) + '\n\nRECENT TELEMETRY LOGS:\n' + str(dynamic_logs)
         prompt = 'You are an AI assistant monitoring a Mini-Pupper V2 robot navigating a maze.\nUse the context below to answer the question concisely.\n\nContext:\n' + context + '\n\nQuestion:\n' + question + '\n\nAnswer:'
-        response = ollama.chat(model='llama3', messages=[{'role': 'user', 'content': prompt}])
+        response = ollama.chat(model='llama3.2', messages=[{'role': 'user', 'content': prompt}])
         return jsonify({'answer': response['message']['content']})
     except Exception as e:
         return jsonify({'answer': 'Error: ' + str(e)})
