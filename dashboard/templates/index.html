@@ -181,6 +181,27 @@
     <div class="log-box" id="log-box"></div>
   </div>
 
+
+  <!-- AI Chat -->
+  <div class="card span-2">
+    <h2>AI MISSION ASSISTANT &mdash; ask about any mission</h2>
+    <div style="display:flex; gap:8px; margin-bottom:10px;">
+      <input id="mission-input" type="text" value="TEST"
+        style="width:120px; background:#111; border:1px solid #333; color:#fff; padding:6px 10px; border-radius:4px; font-family:monospace; font-size:13px;"
+        placeholder="mission id" />
+      <input id="question-input" type="text"
+        style="flex:1; background:#111; border:1px solid #333; color:#fff; padding:6px 10px; border-radius:4px; font-family:monospace; font-size:13px;"
+        placeholder="Ask a question about this mission..." />
+      <button onclick="askQuestion()"
+        style="background:#1a3d1a; border:1px solid #00c853; color:#00c853; padding:6px 16px; border-radius:4px; cursor:pointer; font-family:monospace; font-size:13px;">
+        ASK
+      </button>
+    </div>
+    <div id="chat-log"
+      style="background:#111; border-radius:4px; padding:10px; min-height:120px; max-height:200px; overflow-y:auto; font-size:13px; line-height:1.7;">
+      <div style="color:#444;">Ask a question about a mission to get started...</div>
+    </div>
+  </div>
 </div>
 
 <!-- Mission Detail Modal -->
@@ -280,6 +301,39 @@
   function closeModal() {
     document.getElementById('modal').classList.remove('open');
   }
+
+
+  async function askQuestion() {
+    const question = document.getElementById('question-input').value.trim();
+    const mission_id = document.getElementById('mission-input').value.trim() || 'TEST';
+    if (!question) return;
+    const chatLog = document.getElementById('chat-log');
+    chatLog.innerHTML += '<div style="color:#aaa; margin-top:8px;"><span style="color:#378add;">You:</span> ' + question + '</div>';
+    chatLog.innerHTML += '<div style="color:#555;" id="thinking">Thinking...</div>';
+    chatLog.scrollTop = chatLog.scrollHeight;
+    document.getElementById('question-input').value = '';
+    try {
+      const res = await fetch('/api/ask', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({question, mission_id})
+      });
+      const data = await res.json();
+      document.getElementById('thinking').remove();
+      chatLog.innerHTML += '<div style="color:#ccc; margin-bottom:8px;"><span style="color:#00c853;">AI:</span> ' + data.answer + '</div>';
+      chatLog.scrollTop = chatLog.scrollHeight;
+      log('AI answered question about mission ' + mission_id);
+    } catch(e) {
+      document.getElementById('thinking').remove();
+      chatLog.innerHTML += '<div style="color:#e53935;">Error: ' + e + '</div>';
+    }
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && document.activeElement.id === 'question-input') {
+      askQuestion();
+    }
+  });
 
   // Init
   loadStatus();
