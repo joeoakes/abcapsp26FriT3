@@ -47,22 +47,30 @@ static void get_utc_iso8601(char *buf, size_t len) {
 // --- Example movement functions ---
 void move_forward()
 { 
-    system("ros2 topic pub -r 5 -t 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.15}, angular: {z: 0.0}}\""); 
+    system("ros2 topic pub -r 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.15}, angular: {z: 0.0}}\""); 
+    sleep(2);
+    system("ros2 topic pub -r 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0}, angular: {z: 0.0}}\""); 
 }
 void move_backward() 
 {
-    system("ros2 topic pub -r 5 -t 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: -0.15}, angular: {z: 0.0}}\""); 
+    system("ros2 topic pub -r 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: -0.15}, angular: {z: 0.0}}\""); 
+    sleep(2);
+    system("ros2 topic pub -r 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0}, angular: {z: 0.0}}\""); 
 }
 void move_left()
 { 
     // Rotate left in place
     system("ros2 topic pub -r 5 -t 16 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.0}, angular: {z: 0.5}}\""); 
+    sleep(3);
+    system("ros2 topic pub -r 5 -t 16 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.0}, angular: {z: 0}}\""); 
     move_forward();
 }
 void move_right()
 { 
     // Rotate right in place
     system("ros2 topic pub -r 5 -t 16 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.0}, angular: {z: -0.5}}\""); 
+    sleep(3);
+    system("ros2 topic pub -r 5 -t 16 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.0}, angular: {z: 0}}\""); 
     move_forward();
 }
 
