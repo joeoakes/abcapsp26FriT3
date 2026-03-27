@@ -14,6 +14,8 @@
 #include <bson/bson.h>
 #include <hiredis/hiredis.h>
 #include <unistd.h>
+#include <hiredis/hiredis.h>
+#include "maze_learning.h"
 
 #define MAZE_W 21   // number of cells horizontally
 #define MAZE_H 15   // number of cells vertically
@@ -34,6 +36,14 @@ typedef struct {
 } Cell;
 
 static Cell g[MAZE_H][MAZE_W];
+
+LearnedMaze learned;
+redisContext *learning_redis = NULL;
+const char *maze_id = "default_maze_21x15";
+int last_ai_px = -1;
+int last_ai_py = -1;
+
+
 
 
 #include "astar.h"
@@ -188,13 +198,145 @@ static bool try_move(int* px, int* py, int dx, int dy) {
 
   *px = nx;
   *py = ny;
+
+  learning_mark_open(&learned, *px, *py);
+  learning_mark_visit(&learned, *px, *py);
+
   return true;
+}
+
+static bool can_move_from(int px, int py, int dx, int dy) {
+    int nx = px + dx, ny = py + dy;
+    if (!in_bounds(nx, ny)) return false;
+
+    uint8_t w = g[py][px].walls;
+
+    if (dx == 0 && dy == -1 && (w & WALL_N)) return false;
+    if (dx == 1 && dy == 0  && (w & WALL_E)) return false;
+    if (dx == 0 && dy == 1  && (w & WALL_S)) return false;
+    if (dx == -1 && dy == 0 && (w & WALL_W)) return false;
+
+    return true;
+}
+
+static bool do_learning_ai_step(int *px, int *py, char *orientation,
+                                int *moves_left_turn, int *moves_right_turn,
+                                int *moves_straight, int *moves_reverse,
+                                const char **last_turn) {
+    typedef struct {
+        char move;
+        int nx, ny;
+        int visits;
+        bool is_backtrack;
+    } Option;
+
+    Option opts[4];
+    int count = 0;
+
+    int dxs[4] = {0, 1, 0, -1};
+    int dys[4] = {-1, 0, 1, 0};
+    char mvs[4] = {'N', 'E', 'S', 'W'};
+
+    for (int i = 0; i < 4; i++) {
+        int dx = dxs[i], dy = dys[i];
+        int nx = *px + dx, ny = *py + dy;
+
+        if (!can_move_from(*px, *py, dx, dy)) continue;
+
+        opts[count].move = mvs[i];
+        opts[count].nx = nx;
+        opts[count].ny = ny;
+        opts[count].visits = learned.visit_count[ny][nx];
+        opts[count].is_backtrack = (nx == last_ai_px && ny == last_ai_py);
+        count++;
+    }
+
+    if (count == 0) {
+        printf("AI has no move from (%d,%d)\n", *px, *py);
+        return false;
+    }
+
+    int best = -1;
+
+    for (int i = 0; i < count; i++) {
+        if (opts[i].is_backtrack) continue;
+
+        if (best == -1 || opts[i].visits < opts[best].visits) {
+            best = i;
+        }
+    }
+
+    if (best == -1) {
+        for (int i = 0; i < count; i++) {
+            if (best == -1 || opts[i].visits < opts[best].visits) {
+                best = i;
+            }
+        }
+    }
+
+    char move = opts[best].move;
+    bool hasMoved = false;
+    int oldx = *px, oldy = *py;
+
+    if (move == 'N') {
+        hasMoved = try_move(px, py, 0, -1);
+        if (hasMoved) {
+            if (*orientation == 'N') { (*moves_straight)++; *last_turn = "forward"; }
+            else if (*orientation == 'E') { (*moves_left_turn)++; *last_turn = "left"; }
+            else if (*orientation == 'S') { (*moves_reverse)++; *last_turn = "backward"; }
+            else if (*orientation == 'W') { (*moves_right_turn)++; *last_turn = "right"; }
+            *orientation = 'N';
+        }
+    } else if (move == 'E') {
+        hasMoved = try_move(px, py, 1, 0);
+        if (hasMoved) {
+            if (*orientation == 'N') { (*moves_right_turn)++; *last_turn = "right"; }
+            else if (*orientation == 'E') { (*moves_straight)++; *last_turn = "forward"; }
+            else if (*orientation == 'S') { (*moves_left_turn)++; *last_turn = "left"; }
+            else if (*orientation == 'W') { (*moves_reverse)++; *last_turn = "backward"; }
+            *orientation = 'E';
+        }
+    } else if (move == 'S') {
+        hasMoved = try_move(px, py, 0, 1);
+        if (hasMoved) {
+            if (*orientation == 'N') { (*moves_reverse)++; *last_turn = "backward"; }
+            else if (*orientation == 'E') { (*moves_right_turn)++; *last_turn = "right"; }
+            else if (*orientation == 'S') { (*moves_straight)++; *last_turn = "forward"; }
+            else if (*orientation == 'W') { (*moves_left_turn)++; *last_turn = "left"; }
+            *orientation = 'S';
+        }
+    } else if (move == 'W') {
+        hasMoved = try_move(px, py, -1, 0);
+        if (hasMoved) {
+            if (*orientation == 'N') { (*moves_left_turn)++; *last_turn = "left"; }
+            else if (*orientation == 'E') { (*moves_reverse)++; *last_turn = "backward"; }
+            else if (*orientation == 'S') { (*moves_right_turn)++; *last_turn = "right"; }
+            else if (*orientation == 'W') { (*moves_straight)++; *last_turn = "forward"; }
+            *orientation = 'W';
+        }
+    }
+
+    if (hasMoved) {
+        last_ai_px = oldx;
+        last_ai_py = oldy;
+        printf("AI pos: (%d,%d)\n", *px, *py);
+        return true;
+    }
+
+    printf("AI has no move from (%d,%d)\n", *px, *py);
+    return false;
 }
 
 static void regenerate(int* px, int* py, SDL_Window* win) {
   maze_init();
   maze_generate(0, 0);
   *px = 0; *py = 0;
+  last_ai_px = -1;
+  last_ai_py = -1;
+
+  learning_mark_open(&learned, *px, *py);
+  learning_mark_visit(&learned, *px, *py);
+  learning_mark_goal(&learned, MAZE_W - 1, MAZE_H - 1);
   SDL_SetWindowTitle(win, "SDL2 Maze - Reach the green goal (R to regenerate)");
 }
 
@@ -572,7 +714,23 @@ int main(int argc, char** argv) {
       if (c) printf("Redis error: %s\n", REDIS_HOST);
       else printf("Can't allocate redis context\n");
       return 1;
+
   }
+  learning_init(&learned);
+  learning_redis = c;
+  if (learning_redis && !learning_redis->err) {
+      learning_load(learning_redis, maze_id, &learned);
+
+      printf("Learning load: run=%d known=%d reused=%d\n",
+       learned.run_number,
+       learned.known_cells,
+       learned.reused_prior_knowledge);
+  }
+
+
+  
+
+  
   printf("-----------------------------------------------\n");
   printf("Database: Redis\n");
   printf("Redis Host: %s\n", REDIS_HOST);
@@ -861,6 +1019,18 @@ for (int i = 1; i < argc; i++) {
             "user exited"              // abort_reason
           );
           if (reply) freeReplyObject(reply);
+
+          if (learning_redis && !learning_redis->err) {
+              learning_mark_dead_ends(&learned);
+              learning_save(learning_redis, maze_id, &learned);
+
+              printf("Learning save: known=%d dead_ends=%d reused=%d\n",
+               learned.known_cells,
+               learned.dead_ends_marked,
+               learned.reused_prior_knowledge
+              );
+
+          }
           char*json = create_mission_summary_json(
             mission_id,
             robot_id,
@@ -920,86 +1090,19 @@ for (int i = 1; i < argc; i++) {
             }
           execl("./missions/mission_dashboard", "mission_dashboard", mission_id, NULL);
         }
-        if (k == SDLK_n)
-        {
-          char move = astar_next_move(g, px, py);
-          if (move == 'N') {
-            hasMoved = try_move(&px, &py, 0, -1);
-            if (hasMoved) {
-              if (orientation == 'N') {
-                moves_straight += 1;
-                last_turn = "forward";
-              } else if (orientation == 'E') {
-                moves_left_turn += 1;
-                last_turn = "left";
-              } else if (orientation == 'S') {
-                moves_reverse += 1;
-                last_turn = "backward";
-              } else if (orientation == 'W') {
-                moves_right_turn += 1;
-                last_turn = "right";
-              }
-              orientation = 'N';
-            }
-          }
-          else if (move == 'E') {
-            hasMoved = try_move(&px, &py, 1, 0);
-            if (hasMoved) {
-              if (orientation == 'N') {
-                moves_right_turn += 1;
-                last_turn = "right";
-              } else if (orientation == 'E') {
-                moves_straight += 1;
-                last_turn = "forward";
-              } else if (orientation == 'S') {
-                moves_left_turn += 1;
-                last_turn = "left";
-              } else if (orientation == 'W') {
-                moves_reverse += 1;
-                last_turn = "backward";
-              }
-              orientation = 'E';
-            }
-          }
-          else if (move =='S') {
-            hasMoved = try_move(&px, &py, 0, 1);
-            if (hasMoved) {
-              if (orientation == 'N') {
-                moves_reverse += 1;
-                last_turn = "backward";
-              } else if (orientation == 'E') {
-                moves_right_turn += 1;
-                last_turn = "right";
-              } else if (orientation == 'S') {
-                moves_straight += 1;
-                last_turn = "forward";
-              } else if (orientation == 'W') {
-                moves_left_turn += 1;
-                last_turn = "left";
-              }
-              orientation = 'S';
-            }
-          }
-          else if (move == 'W') {
-            hasMoved = try_move(&px, &py, -1, 0);
-            if (hasMoved) {
-              if (orientation == 'N') {
-                moves_left_turn += 1;
-                last_turn = "left";
-              } else if (orientation == 'E') {
-                moves_reverse += 1;
-                last_turn = "backward";
-              } else if (orientation == 'S') {
-                moves_right_turn += 1;
-                last_turn = "right";
-              } else if (orientation == 'W') {
-                moves_straight += 1;
-                last_turn = "forward";
-              }
-              orientation = 'W';
-            }
-          }
+
+        if (k == SDLK_n) {
+          hasMoved = do_learning_ai_step(&px, &py, &orientation,
+                                   &moves_left_turn, &moves_right_turn,
+                                   &moves_straight, &moves_reverse,
+                                   &last_turn);
+
+          if (px == MAZE_W - 1 && py == MAZE_H - 1) {
+            won = true;
+            SDL_SetWindowTitle(win, "You win! Press R to regenerate, Esc to quit");
         }
+    }
+        
 
         
         
