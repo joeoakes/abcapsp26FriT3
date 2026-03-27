@@ -86,7 +86,8 @@
     font-size: 11px;
     font-weight: bold;
   }
-  .badge.success { background: #0a2e0a; color: #00c853; border: 1px solid #00c853; }
+  .badge.success   { background: #0a2e0a; color: #00c853; border: 1px solid #00c853; }
+  .badge.completed { background: #0a2e0a; color: #00c853; border: 1px solid #00c853; }
   .badge.failed  { background: #2e0a0a; color: #e53935; border: 1px solid #e53935; }
   .badge.aborted { background: #2e1a0a; color: #ff6d00; border: 1px solid #ff6d00; }
   .badge.unknown { background: #222;    color: #aaa;    border: 1px solid #555; }
@@ -186,7 +187,7 @@
   <div class="card span-2">
     <h2>AI MISSION ASSISTANT &mdash; ask about any mission</h2>
     <div style="display:flex; gap:8px; margin-bottom:10px;">
-      <input id="mission-input" type="text" value="TEST"
+      <input id="mission-input" type="text" value="TEST_MISSION"
         style="width:120px; background:#111; border:1px solid #333; color:#fff; padding:6px 10px; border-radius:4px; font-family:monospace; font-size:13px;"
         placeholder="mission id" />
       <input id="question-input" type="text"
@@ -223,7 +224,7 @@
 
   function badgeHTML(result) {
     const r = (result || '').toLowerCase();
-    const cls = ['success','failed','aborted'].includes(r) ? r : 'unknown';
+    const cls = ['success','completed','failed','aborted'].includes(r) ? r : 'unknown';
     return `<span class="badge ${cls}">${(result||'UNKNOWN').toUpperCase()}</span>`;
   }
 
@@ -267,7 +268,7 @@
           </div>
           ${badgeHTML(m.mission_result)}
         `;
-        div.onclick = () => openModal(m);
+        div.onclick = () => { openModal(m); document.getElementById('mission-input').value = m.id; };
         list.appendChild(div);
       });
       const last = missions[missions.length-1];
@@ -283,7 +284,7 @@
     document.getElementById('modal-title').textContent = 'MISSION: ' + m.id;
     const fields = [
       ['Robot', m.robot_id], ['Type', m.mission_type],
-      ['Start', m.start_time], ['End', m.end_time],
+      ['Start', m.start_time ? new Date(m.start_time * 1000).toLocaleString() : null], ['End', m.end_time ? new Date(m.end_time * 1000).toLocaleString() : null],
       ['Duration', m.duration_seconds ? m.duration_seconds + ' s' : null],
       ['Distance', m.distance_traveled ? m.distance_traveled + ' units' : null],
       ['Total Moves', m.moves_total],
@@ -305,7 +306,7 @@
 
   async function askQuestion() {
     const question = document.getElementById('question-input').value.trim();
-    const mission_id = document.getElementById('mission-input').value.trim() || 'TEST';
+    const mission_id = document.getElementById('mission-input').value.trim() || 'TEST_MISSION';
     if (!question) return;
     const chatLog = document.getElementById('chat-log');
     chatLog.innerHTML += '<div style="color:#aaa; margin-top:8px;"><span style="color:#378add;">You:</span> ' + question + '</div>';
