@@ -47,15 +47,14 @@ static void get_utc_iso8601(char *buf, size_t len) {
 // --- Example movement functions ---
 void move_forward()
 { 
-    system("ros2 topic pub -r 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.15}, angular: {z: 0.0}}\""); 
-    sleep(2);
-    system("ros2 topic pub -r 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0}, angular: {z: 0.0}}\""); 
+    system("timeout 2s ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.15}, angular: {z: 0.0}}\""); 
+    system("ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0}, angular: {z: 0.0}}\""); 
 }
 void move_backward() 
 {
-    system("ros2 topic pub -r 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: -0.15}, angular: {z: 0.0}}\""); 
+    system("ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: -0.15}, angular: {z: 0.0}}\""); 
     sleep(2);
-    system("ros2 topic pub -r 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0}, angular: {z: 0.0}}\""); 
+    system("ros2 topic pub --once /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0}, angular: {z: 0.0}}\""); 
 }
 void move_left()
 { 
