@@ -47,22 +47,30 @@ static void get_utc_iso8601(char *buf, size_t len) {
 // --- Example movement functions ---
 void move_forward()
 { 
-    system("ros2 topic pub -r 5 -t 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.15}, angular: {z: 0.0}}\""); 
+    system("ros2 topic pub -r 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.15}, angular: {z: 0.0}}\""); 
+    sleep(2);
+    system("ros2 topic pub -r 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0}, angular: {z: 0.0}}\""); 
 }
 void move_backward() 
 {
-    system("ros2 topic pub -r 5 -t 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: -0.15}, angular: {z: 0.0}}\""); 
+    system("ros2 topic pub -r 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: -0.15}, angular: {z: 0.0}}\""); 
+    sleep(2);
+    system("ros2 topic pub -r 5 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0}, angular: {z: 0.0}}\""); 
 }
 void move_left()
 { 
     // Rotate left in place
     system("ros2 topic pub -r 5 -t 16 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.0}, angular: {z: 0.5}}\""); 
+    sleep(3);
+    system("ros2 topic pub -r 5 -t 16 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.0}, angular: {z: 0}}\""); 
     move_forward();
 }
 void move_right()
 { 
     // Rotate right in place
     system("ros2 topic pub -r 5 -t 16 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.0}, angular: {z: -0.5}}\""); 
+    sleep(3);
+    system("ros2 topic pub -r 5 -t 16 /cmd_vel geometry_msgs/msg/Twist \"{linear: {x: 0.0}, angular: {z: 0}}\""); 
     move_forward();
 }
 
@@ -159,6 +167,7 @@ int main(void) {
     /* 1. LOAD CERT KEY INTO MEMORY BUFFERS */
     char *key_pem = load_file(key_path);
     char *cert_pem = load_file(cert_path);
+    char *ca_pem = load_file("certs/ca.crt");
 
     if (!key_pem || !cert_pem) {
         fprintf(stderr, "Error: Could not read certs.\n");
@@ -175,6 +184,8 @@ int main(void) {
         &handle_post, NULL,
         MHD_OPTION_HTTPS_MEM_CERT, cert_pem,
         MHD_OPTION_HTTPS_MEM_KEY, key_pem,
+        MHD_OPTION_HTTPS_MEM_TRUST, ca_pem,
+        MHD_OPTION_HTTPS_REQUIRE_CLIENT_CERT, MHD_YES,
         MHD_OPTION_END);
 
     if (!daemon) {
@@ -192,6 +203,7 @@ int main(void) {
     
     free(key_pem);
     free(cert_pem);
+    free(ca_pem);
 
     return 0;
 }

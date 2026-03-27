@@ -22,6 +22,7 @@
 #define URL_ENDPOINT_LOGGING "https://10.170.8.130:8449/move"
 #define URL_ENDPOINT_MP "https://10.170.8.226:8449/move"
 #define JSON_BUFFER_SIZE 4096
+CURL *curl;
 
 
 // Wall bitmask for each cell
@@ -198,17 +199,10 @@ static void regenerate(int* px, int* py, SDL_Window* win) {
 }
 
 int post_json_to_move(const char* url, const char* json_data) {
-    CURL* curl;
     CURLcode res;
     int success = 0;
 
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-    curl = curl_easy_init();
-    if (!curl) {
-        fprintf(stderr, "Failed to initialize curl\n");
-        curl_global_cleanup();
-        return 0;
-    }
+    curl_easy_reset(curl);
 
     struct curl_slist* headers = NULL;
     headers = curl_slist_append(headers, "Content-Type: application/json");
@@ -222,7 +216,7 @@ int post_json_to_move(const char* url, const char* json_data) {
 
     // --- Self-signed certificate handling ---
     // 1️⃣ Point curl to your server cert
-    curl_easy_setopt(curl, CURLOPT_CAINFO, "certs/server.crt");
+    curl_easy_setopt(curl, CURLOPT_CAINFO, "certs/ca.crt");
     // 2️⃣ Keep verification enabled (recommended)
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
@@ -232,8 +226,8 @@ int post_json_to_move(const char* url, const char* json_data) {
     curl_easy_setopt(curl, CURLOPT_SSLKEY,  "certs/client.key");
 
     // Timeout settings
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 100);  // 100ms to connect
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 200);        // 200ms total
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 500);  // 500ms to connect
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 1000);        // 1000ms total
 
     // Optional: verbose output for debugging TLS handshake
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
@@ -246,8 +240,6 @@ int post_json_to_move(const char* url, const char* json_data) {
     }
 
     curl_slist_free_all(headers);
-    curl_easy_cleanup(curl);
-    curl_global_cleanup();
     return success;
 }
 
@@ -562,6 +554,13 @@ int load_maze_grid(const char *path)
 }
 
 int main(int argc, char** argv) {
+  curl_global_init(CURL_GLOBAL_DEFAULT);
+  curl = curl_easy_init();
+  if (!curl) {
+      fprintf(stderr, "Failed to initialize curl\n");
+      curl_global_cleanup();
+      return 0;
+  }
   char *REDIS_HOST = "127.0.0.1";
   int REDIS_PORT = 6379;
   redisContext *c = redisConnect(REDIS_HOST, REDIS_PORT);
@@ -578,7 +577,7 @@ int main(int argc, char** argv) {
   printf("Database: Redis\n");
   printf("Redis Host: %s\n", REDIS_HOST);
   printf("Redis Port: %d\n", REDIS_PORT);
-  printf("Key: mission:%s:summary\n", mission_id);
+  printf("Key: team3fmission:%s:summary\n", mission_id);
   printf("-----------------------------------------------\n");
 
 int tombstone_mode = 0;
@@ -594,6 +593,7 @@ for (int i = 1; i < argc; i++) {
   int moves_right_turn = 0;
   int moves_straight = 0;
   int moves_reverse = 0;
+  double distance_traveled = 0.0;
 
   
 
@@ -642,7 +642,7 @@ for (int i = 1; i < argc; i++) {
   {
     redisReply *reply = redisCommand(
     c,
-    "HSET mission:%s:summary "
+    "HSET team3fmission:%s:summary "
     "robot_id %s "
     "mission_type %s "
     "start_time %ld "
@@ -694,7 +694,7 @@ for (int i = 1; i < argc; i++) {
 
 
     char key[128];
-    snprintf(key, sizeof(key), "mission:%s:summary", mission_id);
+    snprintf(key, sizeof(key), "team3fmission:%s:summary", mission_id);
 
     char *tmp;
 
@@ -768,11 +768,13 @@ for (int i = 1; i < argc; i++) {
 
       if (e.type == SDL_KEYDOWN) {
         SDL_Keycode k = e.key.keysym.sym;
+        char *last_turn = " ";
 
+        /*
         end_time = time(NULL);
         redisReply *reply = redisCommand(
           c,
-          "HSET mission:%s:summary "
+          "HSET team3fmission:%s:summary "
           "end_time %ld "
           "moves_left_turn %d "
           "moves_right_turn %d "
@@ -817,10 +819,95 @@ for (int i = 1; i < argc; i++) {
         "https://10.170.8.109:8449/move",
         json
     );
+    */
 
     //free(json);
 
-        if (k == SDLK_ESCAPE) running = false;
+        if (k == SDLK_ESCAPE) {
+          end_time =time(NULL);
+
+          printf("ESC SAVE left=%d right=%d straight=%d reverse=%d total=%d distance=%.2f duration=%ld\n",
+                 moves_left_turn, 
+                 moves_right_turn, 
+                 moves_straight, 
+                 moves_reverse,
+                 moves_left_turn + moves_right_turn + moves_straight + moves_reverse,
+                 distance_traveled,
+                 end_time - start_time);
+
+          redisReply *reply = redisCommand(
+            c,
+            "HSET team3fmission:%s:summary "
+            "end_time %ld "
+            "moves_left_turn %d "
+            "moves_right_turn %d "
+            "moves_straight %d "
+            "moves_reverse %d "
+            "moves_total %d "
+            "distance_traveled %.2f "
+            "duration_seconds %ld " 
+            "mission_result %s "
+            "abort_reason %s",
+            mission_id,
+            end_time,                  // time_t or 0
+            moves_left_turn,                         // moves_left_turn
+            moves_right_turn,                         // moves_right_turn
+            moves_straight,                         // moves_straight
+            moves_reverse,                         // moves_reverse
+            moves_left_turn + moves_right_turn + moves_straight + moves_reverse,   //
+            distance_traveled,                       // distance_traveled
+            end_time - start_time,                        // duration_seconds
+            won ? "success" : "aborted",                 // mission_result
+            "user exited"              // abort_reason
+          );
+          if (reply) freeReplyObject(reply);
+          char*json = create_mission_summary_json(
+            mission_id,
+            robot_id,
+            mission_type,
+            start_time,
+            end_time,
+            moves_left_turn,
+            moves_right_turn,
+            moves_straight,
+            moves_reverse,
+            moves_left_turn + moves_right_turn + moves_straight + moves_reverse,
+            distance_traveled,
+            end_time - start_time,
+            won ? "success" : "aborted",
+            "user exited"
+        );
+
+        if (json) {
+          post_json_to_move(
+            "https://10.170.8.109:8449/move",
+            json
+          );
+          free(json);
+
+        }
+
+        printf(
+          "Mission %s for robot %s was a %s mission."
+          "It recorded %d total moves, including %d left turns, %d right turns, %d straight moves, and %d reverse moves."
+          "The robot traveled a distance of %.2f units over %ld seconds.\n"
+          "The mission result was: %s. Abort reason: %s.\n",
+          mission_id,
+          robot_id,
+          mission_type,
+          moves_left_turn + moves_right_turn + moves_straight + moves_reverse,
+          moves_left_turn,
+          moves_right_turn,
+          moves_straight,
+          moves_reverse,
+          distance_traveled,
+          end_time - start_time,
+          won ? "success" : "aborted",
+          won ? "none" : "user exited"
+        );
+
+          running = false;
+        }
 
         if (k == SDLK_l) {
           
@@ -836,13 +923,86 @@ for (int i = 1; i < argc; i++) {
         if (k == SDLK_n)
         {
           char move = astar_next_move(g, px, py);
-
-          if(move=='N') try_move(&px,&py,0,-1);
-          if(move=='S') try_move(&px,&py,0,1);
-          if(move=='E') try_move(&px,&py,1,0);
-          if(move=='W') try_move(&px,&py,-1,0);
+          if (move == 'N') {
+            hasMoved = try_move(&px, &py, 0, -1);
+            if (hasMoved) {
+              if (orientation == 'N') {
+                moves_straight += 1;
+                last_turn = "forward";
+              } else if (orientation == 'E') {
+                moves_left_turn += 1;
+                last_turn = "left";
+              } else if (orientation == 'S') {
+                moves_reverse += 1;
+                last_turn = "backward";
+              } else if (orientation == 'W') {
+                moves_right_turn += 1;
+                last_turn = "right";
+              }
+              orientation = 'N';
+            }
+          }
+          else if (move == 'E') {
+            hasMoved = try_move(&px, &py, 1, 0);
+            if (hasMoved) {
+              if (orientation == 'N') {
+                moves_right_turn += 1;
+                last_turn = "right";
+              } else if (orientation == 'E') {
+                moves_straight += 1;
+                last_turn = "forward";
+              } else if (orientation == 'S') {
+                moves_left_turn += 1;
+                last_turn = "left";
+              } else if (orientation == 'W') {
+                moves_reverse += 1;
+                last_turn = "backward";
+              }
+              orientation = 'E';
+            }
+          }
+          else if (move =='S') {
+            hasMoved = try_move(&px, &py, 0, 1);
+            if (hasMoved) {
+              if (orientation == 'N') {
+                moves_reverse += 1;
+                last_turn = "backward";
+              } else if (orientation == 'E') {
+                moves_right_turn += 1;
+                last_turn = "right";
+              } else if (orientation == 'S') {
+                moves_straight += 1;
+                last_turn = "forward";
+              } else if (orientation == 'W') {
+                moves_left_turn += 1;
+                last_turn = "left";
+              }
+              orientation = 'S';
+            }
+          }
+          else if (move == 'W') {
+            hasMoved = try_move(&px, &py, -1, 0);
+            if (hasMoved) {
+              if (orientation == 'N') {
+                moves_left_turn += 1;
+                last_turn = "left";
+              } else if (orientation == 'E') {
+                moves_reverse += 1;
+                last_turn = "backward";
+              } else if (orientation == 'S') {
+                moves_right_turn += 1;
+                last_turn = "right";
+              } else if (orientation == 'W') {
+                moves_straight += 1;
+                last_turn = "forward";
+              }
+              orientation = 'W';
+            }
+          }
         }
-        char *last_turn = " ";
+
+        
+        
         if (k == SDLK_r) {
           regenerate(&px, &py, win);
           save_maze_grid("maze_grid.dat");
@@ -979,6 +1139,7 @@ for (int i = 1; i < argc; i++) {
               char ts[32];
               strftime(ts, sizeof(ts), "%Y-%m-%dT%H:%M:%SZ", &tmbuf);
             moveSequence += 1;
+            distance_traveled += 1.0; // assuming each move is 1 unit; adjust if needed
             create_player_move_json(
             "player_move",
             "joystick",
@@ -993,7 +1154,56 @@ for (int i = 1; i < argc; i++) {
             );
             post_json_to_move(URL_ENDPOINT_LOGGING, json);
             post_json_to_move(URL_ENDPOINT_MP, json);
-            print_pretty_json(json);}
+            print_pretty_json(json);
+
+            printf("ABOUT TO UPDATE REDIS SUMMARY\n");
+
+            
+            end_time = time(NULL);
+            redisReply *reply = redisCommand(
+            c,
+            "HSET team3fmission:%s:summary "
+            "end_time %ld "
+            "moves_left_turn %d "
+            "moves_right_turn %d "  
+            "moves_straight %d "
+            "moves_reverse %d "
+            "moves_total %d "
+            "distance_traveled %.2f "
+            "duration_seconds %ld "
+            "mission_result %s "
+            "abort_reason %s",
+            mission_id,
+            end_time,                  // time_t or 0
+            moves_left_turn,                         // moves_left_turn
+            moves_right_turn,                         // moves_right_turn
+            moves_straight,                         // moves_straight
+            moves_reverse,                         // moves_reverse
+            moves_left_turn + moves_right_turn + moves_straight + moves_reverse,   //
+            distance_traveled,                       // distance_traveled
+            end_time - start_time,                        // duration_seconds
+            won ? "success" : "in_progress",                 // mission_result
+            "player moved"              // abort_reason
+            );
+            if (!reply) {              
+              printf("Failed to update Redis summary\n");
+            }
+            else {
+              printf(
+                "Updated Redis summary: end_time=%ld, moves_left_turn=%d, moves_right_turn=%d, moves_straight=%d, moves_reverse=%d, moves_total=%d, distance_traveled=%.2f, duration_seconds=%ld, mission_result=%s\n",
+                end_time,
+                moves_left_turn,
+                moves_right_turn,
+                moves_straight,
+                moves_reverse,
+                moves_left_turn + moves_right_turn + moves_straight + moves_reverse,
+                distance_traveled,
+                end_time - start_time,
+                won ? "success" : "in_progress"
+              );
+              freeReplyObject(reply);
+            }
+            }
         }
       }
     }

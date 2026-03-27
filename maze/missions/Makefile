@@ -19,7 +19,7 @@ ifeq ($(NO_REDIS),1)
   CFLAGS += -DNO_REDIS
   LDLIBS := -lSDL2_ttf
 else
-  LDLIBS := -lhiredis -lSDL2_ttf
+  LDLIBS := -lhiredis -lSDL2_ttf -lm
 endif
 
 all: $(TARGET)
