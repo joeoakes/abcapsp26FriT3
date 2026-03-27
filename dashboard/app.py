@@ -2,13 +2,14 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 from flask import Flask, render_template, jsonify, request
 import redis, ollama
+client = ollama.Client(host='http://127.0.0.1:11434')
 from rag.ingest import load_documents, chunk_text
 from rag.vector_store import VectorStore
 from rag.retrieve import retrieve
 from rag.logs import get_recent_logs
 
 app = Flask(__name__)
-r = redis.Redis(host='127.0.0.1', port=6379, decode_responses=True)
+r = redis.Redis(host='127.0.0.1', port=6380, decode_responses=True)
 
 store = VectorStore()
 docs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'docs')
@@ -55,26 +56,62 @@ def api_status():
     try:
         r.ping()
         redis_status = 'connected'
+        redis_detail = 'AI server Redis (10.170.8.109:6379)'
     except:
         redis_status = 'disconnected'
-    return jsonify({'redis': redis_status, 'robot': 'mini-pupper-v2', 'team': 'team3f'})
+        redis_detail = 'AI server Redis unreachable'
+    try:
+        import pymongo
+        mongo = pymongo.MongoClient('mongodb://10.170.8.130:27017/', serverSelectionTimeoutMS=2000)
+        mongo.server_info()
+        mongo_status = 'connected'
+    except:
+        mongo_status = 'disconnected'
+    try:
+        import urllib.request
+        urllib.request.urlopen('http://10.170.8.109:11434/', timeout=2)
+        ollama_status = 'connected'
+    except:
+        ollama_status = 'disconnected'
+    return jsonify({'redis': redis_status, 'redis_detail': redis_detail, 'mongodb': mongo_status, 'ollama': ollama_status, 'robot': 'mini-pupper-v2', 'team': 'team3f'})
+
 
 @app.route('/api/ask', methods=['POST'])
 def api_ask():
     data = request.get_json()
-    question = data.get('question', '').strip()
-    mission_id = data.get('mission_id', 'TEST')
+    mission_id = data.get('mission_id', '')
+    question = data.get('question', '')
     if not question:
-        return jsonify({'answer': 'Please ask a question.'})
+        return jsonify({'error': 'No question provided'}), 400
     try:
-        static_context = retrieve(store, question)
-        dynamic_logs = get_recent_logs(mission_id)
-        context = 'STATIC KNOWLEDGE:\n' + str(static_context) + '\n\nRECENT TELEMETRY LOGS:\n' + str(dynamic_logs)
-        prompt = 'You are an AI assistant monitoring a Mini-Pupper V2 robot navigating a maze.\nUse the context below to answer the question concisely.\n\nContext:\n' + context + '\n\nQuestion:\n' + question + '\n\nAnswer:'
-        response = ollama.chat(model='llama3.2', messages=[{'role': 'user', 'content': prompt}])
-        return jsonify({'answer': response['message']['content']})
+        mission = get_mission(mission_id)
+        context = f"""Mission ID: {mission_id}
+Status: {mission.get('status', 'unknown')}
+Type: {mission.get('mission_type', 'unknown')}
+Robot: {mission.get('robot_id', 'unknown')}
+Summary: {mission.get('summary', 'No summary available')}
+Turns: {mission.get('turns', 'unknown')}
+Duration: {mission.get('duration', 'unknown')}"""
+        rag_context = retrieve(store, question)
+        prompt = f"""You are an assistant for the Mini-Pupper V2 robotics capstone project.
+Use the mission data and RAG context below to answer the question.
+
+Mission Data:
+{context}
+
+RAG Context:
+{rag_context}
+
+Question: {question}
+Answer concisely:"""
+        response = client.chat(
+            model='llama3.2',
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        answer = response['message']['content']
+        return jsonify({'answer': answer, 'mission_id': mission_id})
     except Exception as e:
-        return jsonify({'answer': 'Error: ' + str(e)})
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(debug=True, host='0.0.0.0', port=5000)
