@@ -1,12 +1,11 @@
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-from flask import Flask, render_template, jsonify, request
-import redis, ollama
+from flask import Flask, render_template, jsonify, request, Response
+import redis, ollama, urllib.request, json
 client = ollama.Client(host='http://127.0.0.1:11434')
 from rag.ingest import load_documents, chunk_text
 from rag.vector_store import VectorStore
 from rag.retrieve import retrieve
-from rag.logs import get_recent_logs
 
 app = Flask(__name__)
 r = redis.Redis(host='127.0.0.1', port=6380, decode_responses=True)
@@ -19,13 +18,59 @@ for doc in docs:
     chunks.extend(chunk_text(doc))
 store.add(chunks)
 
+CAMERA_PORT = 5001
+
+def _proxy_stream(ip, path):
+    url = f'http://{ip}:{CAMERA_PORT}{path}'
+    def gen():
+        try:
+            req = urllib.request.urlopen(url, timeout=5)
+            while True:
+                chunk = req.read(4096)
+                if not chunk: break
+                yield chunk
+        except Exception as e:
+            print(f'[proxy] {url} error: {e}')
+            yield b''
+    return Response(gen(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/camera/stream')
+def camera_stream():
+    ip = request.args.get('ip', '')
+    path = request.args.get('path', '/video_feed')
+    if not ip: return 'missing ip', 400
+    return _proxy_stream(ip, path)
+
+@app.route('/api/camera/check')
+def camera_check():
+    ip = request.args.get('ip', '')
+    if not ip: return jsonify({'online': False, 'error': 'no ip'})
+    try:
+        url = f'http://{ip}:{CAMERA_PORT}/health'
+        with urllib.request.urlopen(url, timeout=2) as resp:
+            data = json.loads(resp.read())
+            return jsonify({'online': True, **data})
+    except:
+        return jsonify({'online': False})
+
+@app.route('/api/camera/detection')
+def camera_detection():
+    ip = request.args.get('ip', '')
+    if not ip: return jsonify({'error': 'no ip'})
+    try:
+        url = f'http://{ip}:{CAMERA_PORT}/detection'
+        with urllib.request.urlopen(url, timeout=2) as resp:
+            data = json.loads(resp.read())
+            return jsonify(data)
+    except:
+        return jsonify({"tag_id":None,"x":None,"y":None,"z":None,"roll":None,"pitch":None,"yaw":None})
+
 def get_mission_ids():
     keys = r.keys('team3fmission:*:summary')
     ids = []
     for k in keys:
         parts = k.split(':')
-        if len(parts) == 3:
-            ids.append(parts[1])
+        if len(parts) == 3: ids.append(parts[1])
     return sorted(ids)
 
 def get_mission(mission_id):
@@ -68,21 +113,20 @@ def api_status():
     except:
         mongo_status = 'disconnected'
     try:
-        import urllib.request
         urllib.request.urlopen('http://10.170.8.109:11434/', timeout=2)
         ollama_status = 'connected'
     except:
         ollama_status = 'disconnected'
-    return jsonify({'redis': redis_status, 'redis_detail': redis_detail, 'mongodb': mongo_status, 'ollama': ollama_status, 'robot': 'mini-pupper-v2', 'team': 'team3f'})
-
+    return jsonify({'redis': redis_status, 'redis_detail': redis_detail,
+                    'mongodb': mongo_status, 'ollama': ollama_status,
+                    'robot': 'mini-pupper-v2', 'team': 'team3f'})
 
 @app.route('/api/ask', methods=['POST'])
 def api_ask():
     data = request.get_json()
     mission_id = data.get('mission_id', '')
     question = data.get('question', '')
-    if not question:
-        return jsonify({'error': 'No question provided'}), 400
+    if not question: return jsonify({'error': 'No question provided'}), 400
     try:
         mission = get_mission(mission_id)
         context = f"""Mission ID: {mission_id}
@@ -97,26 +141,15 @@ Moves Left Turn: {mission.get('moves_left_turn', 'unknown')}
 Moves Right Turn: {mission.get('moves_right_turn', 'unknown')}
 Moves Reverse: {mission.get('moves_reverse', 'unknown')}
 Distance Traveled: {mission.get('distance_traveled', 'unknown')}"""
-        rag_context = retrieve(store, question)
+        from rag.retrieve import retrieve as _retrieve
+        rag_context = _retrieve(store, question)
         prompt = f"""You are an assistant for the Mini-Pupper V2 robotics capstone project.
-Use the mission data and RAG context below to answer the question.
-
-Mission Data:
-{context}
-
-RAG Context:
-{rag_context}
-
-Question: {question}
-Answer concisely:"""
-        response = client.chat(
-            model='llama3.2',
-            messages=[{'role': 'user', 'content': prompt}]
-        )
+Mission Data:\n{context}\nRAG Context:\n{rag_context}\nQuestion: {question}\nAnswer concisely:"""
+        response = client.chat(model='llama3.2', messages=[{'role': 'user', 'content': prompt}])
         answer = response['message']['content']
         return jsonify({'answer': answer, 'mission_id': mission_id})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)

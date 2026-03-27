@@ -7,137 +7,57 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #0f0f11; color: #e0e0e0; font-family: 'Courier New', monospace; }
-
-  header {
-    background: #1a1a1e;
-    border-bottom: 1px solid #333;
-    padding: 14px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
+  header { background: #1a1a1e; border-bottom: 1px solid #333; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; }
   header h1 { font-size: 18px; letter-spacing: 2px; color: #fff; }
-  .status-bar { display: flex; gap: 16px; font-size: 12px; }
+  .status-bar { display: flex; gap: 16px; font-size: 12px; align-items: center; }
   .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
-  .dot.green { background: #00c853; }
-  .dot.red   { background: #e53935; }
-  .dot.gray  { background: #555; }
-
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto auto;
-    gap: 16px;
-    padding: 20px;
-  }
-
-  .card {
-    background: #1a1a1e;
-    border: 1px solid #2a2a2e;
-    border-radius: 6px;
-    padding: 16px;
-  }
-  .card h2 {
-    font-size: 11px;
-    letter-spacing: 1.5px;
-    color: #666;
-    margin-bottom: 12px;
-    border-bottom: 1px solid #2a2a2e;
-    padding-bottom: 8px;
-  }
-
-  /* Status card */
+  .dot.green { background: #00c853; } .dot.red { background: #e53935; } .dot.gray { background: #555; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px; }
+  .card { background: #1a1a1e; border: 1px solid #2a2a2e; border-radius: 6px; padding: 16px; }
+  .card h2 { font-size: 11px; letter-spacing: 1.5px; color: #666; margin-bottom: 12px; border-bottom: 1px solid #2a2a2e; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .cam-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .cam-block { display: flex; flex-direction: column; gap: 6px; }
+  .cam-label { font-size: 10px; letter-spacing: 1px; color: #555; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .cam-feed { width: 100%; background: #111; border: 1px solid #2a2a2e; border-radius: 4px; object-fit: cover; display: block; }
+  .cam-feed.video { aspect-ratio: 4/3; } .cam-feed.map { aspect-ratio: 1/1; }
+  .ip-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .ip-input { flex: 1; background: #111; border: 1px solid #2a2a2e; color: #aaa; padding: 4px 8px; border-radius: 3px; font-family: monospace; font-size: 11px; }
+  .ip-input:focus { outline: none; border-color: #444; color: #fff; }
+  .ip-btn { background: none; border: 1px solid #333; color: #666; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-family: monospace; font-size: 11px; }
+  .ip-btn:hover { border-color: #666; color: #fff; }
+  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #333; flex-shrink: 0; transition: background 0.3s; }
+  .live-dot.on { background: #00c853; animation: pulse 1.5s infinite; }
+  .live-dot.off { background: #e53935; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
   .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .stat { background: #111; border-radius: 4px; padding: 12px; }
   .stat .label { font-size: 11px; color: #666; margin-bottom: 4px; }
   .stat .value { font-size: 18px; color: #fff; font-weight: bold; }
-
-  /* Camera */
-  .camera-placeholder {
-    background: #111;
-    border: 1px dashed #333;
-    border-radius: 4px;
-    height: 200px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #444;
-    font-size: 13px;
-  }
-
-  /* Mission history */
   .mission-list { max-height: 260px; overflow-y: auto; }
-  .mission-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 10px;
-    border-radius: 4px;
-    margin-bottom: 6px;
-    background: #111;
-    cursor: pointer;
-    font-size: 13px;
-  }
+  .mission-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 4px; margin-bottom: 6px; background: #111; cursor: pointer; font-size: 13px; }
   .mission-item:hover { background: #222; }
   .mission-id { color: #aaa; font-size: 11px; }
-  .badge {
-    padding: 2px 10px;
-    border-radius: 3px;
-    font-size: 11px;
-    font-weight: bold;
-  }
-  .badge.success   { background: #0a2e0a; color: #00c853; border: 1px solid #00c853; }
-  .badge.completed { background: #0a2e0a; color: #00c853; border: 1px solid #00c853; }
-  .badge.failed  { background: #2e0a0a; color: #e53935; border: 1px solid #e53935; }
+  .badge { padding: 2px 10px; border-radius: 3px; font-size: 11px; font-weight: bold; }
+  .badge.success,.badge.completed { background: #0a2e0a; color: #00c853; border: 1px solid #00c853; }
+  .badge.failed { background: #2e0a0a; color: #e53935; border: 1px solid #e53935; }
   .badge.aborted { background: #2e1a0a; color: #ff6d00; border: 1px solid #ff6d00; }
-  .badge.unknown { background: #222;    color: #aaa;    border: 1px solid #555; }
-
-  /* Logs */
-  .log-box {
-    background: #111;
-    border-radius: 4px;
-    padding: 10px;
-    height: 200px;
-    overflow-y: auto;
-    font-size: 12px;
-    line-height: 1.8;
-  }
-  .log-line { color: #666; }
-  .log-line span { color: #0f9; }
-
-  /* Mission detail modal */
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.7);
-    z-index: 100;
-    align-items: center;
-    justify-content: center;
-  }
-  .modal-overlay.open { display: flex; }
-  .modal {
-    background: #1a1a1e;
-    border: 1px solid #333;
-    border-radius: 8px;
-    padding: 24px;
-    width: 500px;
-    max-width: 90vw;
-  }
-  .modal h3 { color: #fff; margin-bottom: 16px; font-size: 14px; letter-spacing: 1px; }
-  .modal-field { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #222; font-size: 13px; }
-  .modal-field .k { color: #666; }
-  .modal-field .v { color: #fff; }
-  .modal-close { margin-top: 16px; background: #333; border: none; color: #fff; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-family: monospace; }
-  .modal-close:hover { background: #444; }
-
+  .badge.unknown { background: #222; color: #aaa; border: 1px solid #555; }
+  .log-box { background: #111; border-radius: 4px; padding: 10px; height: 200px; overflow-y: auto; font-size: 12px; line-height: 1.8; }
+  .log-line { color: #666; } .log-line span { color: #0f9; }
+  .modal-overlay { display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,.7); z-index:100; align-items:center; justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:#1a1a1e; border:1px solid #333; border-radius:8px; padding:24px; width:500px; max-width:90vw; }
+  .modal h3 { color:#fff; margin-bottom:16px; font-size:14px; letter-spacing:1px; }
+  .modal-field { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #222; font-size:13px; }
+  .modal-field .k { color:#666; } .modal-field .v { color:#fff; }
+  .modal-close { margin-top:16px; background:#333; border:none; color:#fff; padding:8px 20px; border-radius:4px; cursor:pointer; font-family:monospace; }
+  .modal-close:hover { background:#444; }
   .span-2 { grid-column: span 2; }
-  .refresh-btn { background: none; border: 1px solid #333; color: #888; padding: 4px 12px; border-radius: 3px; cursor: pointer; font-family: monospace; font-size: 11px; float: right; }
-  .refresh-btn:hover { border-color: #666; color: #fff; }
+  .refresh-btn { background:none; border:1px solid #333; color:#888; padding:4px 12px; border-radius:3px; cursor:pointer; font-family:monospace; font-size:11px; }
+  .refresh-btn:hover { border-color:#666; color:#fff; }
 </style>
 </head>
 <body>
-
 <header>
   <h1>MINI-PUPPER V2 &mdash; TEAM 3F</h1>
   <div class="status-bar">
@@ -146,10 +66,7 @@
     <span id="last-update" style="color:#444">--</span>
   </div>
 </header>
-
 <div class="grid">
-
-  <!-- Robot Status -->
   <div class="card">
     <h2>ROBOT STATUS</h2>
     <div class="status-grid">
@@ -159,53 +76,74 @@
       <div class="stat"><div class="label">Last Result</div><div class="value" id="stat-last-result">--</div></div>
     </div>
   </div>
-
-  <!-- Camera Feed -->
-  <div class="card">
-    <h2>CAMERA FEED</h2>
-    <div class="camera-placeholder" id="camera-area">
-      [ camera feed not connected ]
-    </div>
-  </div>
-
-  <!-- Mission History -->
   <div class="card">
     <h2>MISSION HISTORY <button class="refresh-btn" onclick="loadMissions()">REFRESH</button></h2>
-    <div class="mission-list" id="mission-list">
-      <div style="color:#444; font-size:13px;">Loading...</div>
+    <div class="mission-list" id="mission-list"><div style="color:#444;font-size:13px;">Loading...</div></div>
+  </div>
+  <div class="card span-2">
+    <h2>CAMERA FEEDS &amp; APRILTAG MAP</h2>
+    <div class="cam-grid">
+      <div class="cam-block">
+        <div class="ip-row">
+          <input class="ip-input" id="ip-laptop" placeholder="laptop IP e.g. 192.168.1.10" value="" />
+          <button class="ip-btn" onclick="connectCam('laptop')">CONNECT</button>
+        </div>
+        <div class="cam-label"><span class="live-dot" id="dot-laptop"></span>LAPTOP CAM</div>
+        <img id="feed-laptop" class="cam-feed video" src="" style="display:none" />
+        <div id="placeholder-laptop" class="cam-feed video" style="display:flex;align-items:center;justify-content:center;color:#333;font-size:12px;">enter laptop IP above</div>
+      </div>
+      <div class="cam-block">
+        <div class="ip-row">
+          <input class="ip-input" id="ip-pupper" placeholder="Mini-Pupper IP" value="10.170.9.61" />
+          <button class="ip-btn" onclick="connectCam('pupper')">CONNECT</button>
+        </div>
+        <div class="cam-label"><span class="live-dot" id="dot-pupper"></span>MINI-PUPPER CAM</div>
+        <img id="feed-pupper" class="cam-feed video" src="" style="display:none" />
+        <div id="placeholder-pupper" class="cam-feed video" style="display:flex;align-items:center;justify-content:center;color:#333;font-size:12px;">press CONNECT</div>
+      </div>
+      <div class="cam-block">
+        <div class="ip-row">
+          <select id="map-source" class="ip-input">
+            <option value="">-- select map source --</option>
+            <option value="laptop">Laptop cam map</option>
+            <option value="pupper">Pupper cam map</option>
+          </select>
+          <button class="ip-btn" onclick="connectMap()">LOAD</button>
+        </div>
+        <div class="cam-label">OCCUPANCY GRID MAP</div>
+        <img id="feed-map" class="cam-feed map" src="" style="display:none" />
+        <div id="placeholder-map" class="cam-feed map" style="display:flex;align-items:center;justify-content:center;color:#333;font-size:12px;">select source above</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;background:#111;border-radius:4px;padding:12px;">
+      <div style="font-size:10px;letter-spacing:1px;color:#555;margin-bottom:10px;">LIVE APRILTAG POSE</div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;">
+        <div class="stat"><div class="label">SOURCE</div><div class="value" id="pose-source" style="font-size:13px;">--</div></div>
+        <div class="stat"><div class="label">TAG ID</div><div class="value" id="pose-id">--</div></div>
+        <div class="stat"><div class="label">X (m)</div><div class="value" id="pose-x">--</div></div>
+        <div class="stat"><div class="label">Y (m)</div><div class="value" id="pose-y">--</div></div>
+        <div class="stat"><div class="label">ROLL</div><div class="value" id="pose-roll" style="font-size:14px;">--</div></div>
+        <div class="stat"><div class="label">PITCH</div><div class="value" id="pose-pitch" style="font-size:14px;">--</div></div>
+        <div class="stat"><div class="label">YAW</div><div class="value" id="pose-yaw" style="font-size:14px;">--</div></div>
+      </div>
     </div>
   </div>
-
-  <!-- Logs -->
   <div class="card">
-    <h2>LOGS & DIAGNOSTICS</h2>
+    <h2>LOGS &amp; DIAGNOSTICS</h2>
     <div class="log-box" id="log-box"></div>
   </div>
-
-
-  <!-- AI Chat -->
-  <div class="card span-2">
-    <h2>AI MISSION ASSISTANT &mdash; ask about any mission</h2>
-    <div style="display:flex; gap:8px; margin-bottom:10px;">
-      <input id="mission-input" type="text" value="TEST_MISSION"
-        style="width:120px; background:#111; border:1px solid #333; color:#fff; padding:6px 10px; border-radius:4px; font-family:monospace; font-size:13px;"
-        placeholder="mission id" />
-      <input id="question-input" type="text"
-        style="flex:1; background:#111; border:1px solid #333; color:#fff; padding:6px 10px; border-radius:4px; font-family:monospace; font-size:13px;"
-        placeholder="Ask a question about this mission..." />
-      <button onclick="askQuestion()"
-        style="background:#1a3d1a; border:1px solid #00c853; color:#00c853; padding:6px 16px; border-radius:4px; cursor:pointer; font-family:monospace; font-size:13px;">
-        ASK
-      </button>
+  <div class="card">
+    <h2>AI MISSION ASSISTANT</h2>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input id="mission-input" type="text" value="TEST_MISSION" style="width:120px;background:#111;border:1px solid #333;color:#fff;padding:6px 10px;border-radius:4px;font-family:monospace;font-size:13px;" placeholder="mission id" />
+      <input id="question-input" type="text" style="flex:1;background:#111;border:1px solid #333;color:#fff;padding:6px 10px;border-radius:4px;font-family:monospace;font-size:13px;" placeholder="Ask about this mission..." />
+      <button onclick="askQuestion()" style="background:#1a3d1a;border:1px solid #00c853;color:#00c853;padding:6px 16px;border-radius:4px;cursor:pointer;font-family:monospace;font-size:13px;">ASK</button>
     </div>
-    <div id="chat-log"
-      style="background:#111; border-radius:4px; padding:10px; min-height:120px; max-height:200px; overflow-y:auto; font-size:13px; line-height:1.7;">
+    <div id="chat-log" style="background:#111;border-radius:4px;padding:10px;min-height:120px;max-height:200px;overflow-y:auto;font-size:13px;line-height:1.7;">
       <div style="color:#444;">Ask a question about a mission to get started...</div>
     </div>
   </div>
 </div>
-
-<!-- Mission Detail Modal -->
 <div class="modal-overlay" id="modal">
   <div class="modal">
     <h3 id="modal-title">MISSION DETAIL</h3>
@@ -213,19 +151,73 @@
     <button class="modal-close" onclick="closeModal()">CLOSE</button>
   </div>
 </div>
-
 <script>
+  const camIPs = { laptop: '', pupper: '10.170.9.61' };
+
+  async function connectCam(which) {
+    const ip = document.getElementById('ip-' + which).value.trim();
+    if (!ip) { log('Enter an IP for ' + which + ' cam'); return; }
+    camIPs[which] = ip;
+    const res = await fetch('/api/camera/check?ip=' + encodeURIComponent(ip));
+    const data = await res.json();
+    const dot = document.getElementById('dot-' + which);
+    const img = document.getElementById('feed-' + which);
+    const ph  = document.getElementById('placeholder-' + which);
+    if (data.online) {
+      img.src = '/camera/stream?ip=' + encodeURIComponent(ip) + '&path=/video_feed';
+      img.style.display = 'block'; ph.style.display = 'none';
+      dot.className = 'live-dot on';
+      log(which + ' cam connected at ' + ip);
+    } else {
+      dot.className = 'live-dot off'; img.style.display = 'none'; ph.style.display = 'flex';
+      ph.textContent = ip + ' unreachable — is apriltag/app.py running?';
+      log(which + ' cam at ' + ip + ' unreachable');
+    }
+  }
+
+  function connectMap() {
+    const which = document.getElementById('map-source').value;
+    if (!which) { log('Select a map source first'); return; }
+    const ip = camIPs[which];
+    if (!ip) { log('Connect ' + which + ' cam first'); return; }
+    const img = document.getElementById('feed-map');
+    const ph  = document.getElementById('placeholder-map');
+    img.src = '/camera/stream?ip=' + encodeURIComponent(ip) + '&path=/map_feed';
+    img.style.display = 'block'; ph.style.display = 'none';
+    log('Map source: ' + which + ' (' + ip + ')');
+  }
+
+  async function pollPose() {
+    for (const which of ['pupper', 'laptop']) {
+      const ip = camIPs[which];
+      if (!ip) continue;
+      try {
+        const res = await fetch('/api/camera/detection?ip=' + encodeURIComponent(ip));
+        const d = await res.json();
+        const hasTag = d.tag_id !== null;
+        document.getElementById('pose-source').textContent = which.toUpperCase();
+        document.getElementById('pose-id').textContent    = hasTag ? d.tag_id : '--';
+        document.getElementById('pose-x').textContent     = hasTag ? d.x.toFixed(2) : '--';
+        document.getElementById('pose-y').textContent     = hasTag ? d.y.toFixed(2) : '--';
+        document.getElementById('pose-roll').textContent  = hasTag ? d.roll.toFixed(1) + '°' : '--';
+        document.getElementById('pose-pitch').textContent = hasTag ? d.pitch.toFixed(1) + '°' : '--';
+        document.getElementById('pose-yaw').textContent   = hasTag ? d.yaw.toFixed(1) + '°' : '--';
+        if (hasTag) break;
+      } catch(e) {}
+    }
+  }
+
   function log(msg) {
     const box = document.getElementById('log-box');
     const now = new Date().toLocaleTimeString();
-    box.innerHTML += `<div class="log-line"><span>[${now}]</span> ${msg}</div>`;
+    box.innerHTML += '<div class="log-line"><span>[' + now + ']</span> ' + msg + '</div>';
     box.scrollTop = box.scrollHeight;
   }
 
   function badgeHTML(result) {
-    const r = (result || '').toLowerCase();
+    const r = (result||'').toLowerCase();
     const cls = ['success','completed','failed','aborted'].includes(r) ? r : 'unknown';
-    return `<span class="badge ${cls}">${(result||'UNKNOWN').toUpperCase()}</span>`;
+    return '<span class="badge ' + cls + '">' + (result||'UNKNOWN').toUpperCase() + '</span>';
   }
 
   async function loadStatus() {
@@ -233,18 +225,13 @@
       const res = await fetch('/api/status');
       const data = await res.json();
       const redisOk = data.redis === 'connected';
-      document.getElementById('redis-status').innerHTML =
-        `<span class="dot ${redisOk?'green':'red'}"></span>Redis`;
-      document.getElementById('robot-status').innerHTML =
-        `<span class="dot green"></span>${data.robot}`;
+      document.getElementById('redis-status').innerHTML = '<span class="dot ' + (redisOk?'green':'red') + '"></span>Redis';
+      document.getElementById('robot-status').innerHTML = '<span class="dot green"></span>' + data.robot;
       document.getElementById('stat-robot').textContent = data.robot;
       document.getElementById('stat-team').textContent = data.team;
-      document.getElementById('last-update').textContent =
-        new Date().toLocaleTimeString();
-      log(`Status check: Redis ${data.redis}`);
-    } catch(e) {
-      log('Status fetch failed: ' + e);
-    }
+      document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+      log('Status: Redis ' + data.redis + ' | Ollama ' + data.ollama);
+    } catch(e) { log('Status fetch failed: ' + e); }
   }
 
   async function loadMissions() {
@@ -253,94 +240,65 @@
       const missions = await res.json();
       const list = document.getElementById('mission-list');
       document.getElementById('stat-missions').textContent = missions.length;
-      if (missions.length === 0) {
-        list.innerHTML = '<div style="color:#444;font-size:13px;">No missions found</div>';
-        return;
-      }
+      if (!missions.length) { list.innerHTML = '<div style="color:#444;font-size:13px;">No missions found</div>'; return; }
       list.innerHTML = '';
       missions.forEach(m => {
         const div = document.createElement('div');
         div.className = 'mission-item';
-        div.innerHTML = `
-          <div>
-            <div style="color:#ccc">${m.mission_type || 'unknown'} &mdash; ${m.robot_id || '?'}</div>
-            <div class="mission-id">${m.id}</div>
-          </div>
-          ${badgeHTML(m.mission_result)}
-        `;
+        div.innerHTML = '<div><div style="color:#ccc">' + (m.mission_type||'unknown') + ' &mdash; ' + (m.robot_id||'?') + '</div><div class="mission-id">' + m.id + '</div></div>' + badgeHTML(m.mission_result);
         div.onclick = () => { openModal(m); document.getElementById('mission-input').value = m.id; };
         list.appendChild(div);
       });
       const last = missions[missions.length-1];
-      document.getElementById('stat-last-result').textContent =
-        (last.mission_result || 'unknown').toUpperCase();
-      log(`Loaded ${missions.length} mission(s)`);
-    } catch(e) {
-      log('Mission fetch failed: ' + e);
-    }
+      document.getElementById('stat-last-result').textContent = (last.mission_result||'unknown').toUpperCase();
+      log('Loaded ' + missions.length + ' mission(s)');
+    } catch(e) { log('Mission fetch failed: ' + e); }
   }
 
   function openModal(m) {
     document.getElementById('modal-title').textContent = 'MISSION: ' + m.id;
     const fields = [
-      ['Robot', m.robot_id], ['Type', m.mission_type],
-      ['Start', m.start_time ? new Date(m.start_time * 1000).toLocaleString() : null], ['End', m.end_time ? new Date(m.end_time * 1000).toLocaleString() : null],
-      ['Duration', m.duration_seconds ? m.duration_seconds + ' s' : null],
-      ['Distance', m.distance_traveled ? m.distance_traveled + ' units' : null],
-      ['Total Moves', m.moves_total],
-      ['Straight', m.moves_straight], ['Left', m.moves_left_turn],
-      ['Right', m.moves_right_turn], ['Reverse', m.moves_reverse],
-      ['Result', m.mission_result], ['Abort Reason', m.abort_reason],
+      ['Robot',m.robot_id],['Type',m.mission_type],
+      ['Start',m.start_time?new Date(m.start_time*1000).toLocaleString():null],
+      ['End',m.end_time?new Date(m.end_time*1000).toLocaleString():null],
+      ['Duration',m.duration_seconds?m.duration_seconds+' s':null],
+      ['Distance',m.distance_traveled?m.distance_traveled+' units':null],
+      ['Total Moves',m.moves_total],['Straight',m.moves_straight],
+      ['Left',m.moves_left_turn],['Right',m.moves_right_turn],
+      ['Reverse',m.moves_reverse],['Result',m.mission_result],['Abort Reason',m.abort_reason],
     ];
-    document.getElementById('modal-body').innerHTML = fields
-      .filter(([,v]) => v)
-      .map(([k,v]) => `<div class="modal-field"><span class="k">${k}</span><span class="v">${v}</span></div>`)
-      .join('');
+    document.getElementById('modal-body').innerHTML = fields.filter(([,v])=>v)
+      .map(([k,v])=>'<div class="modal-field"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>').join('');
     document.getElementById('modal').classList.add('open');
   }
-
-  function closeModal() {
-    document.getElementById('modal').classList.remove('open');
-  }
-
+  function closeModal() { document.getElementById('modal').classList.remove('open'); }
 
   async function askQuestion() {
     const question = document.getElementById('question-input').value.trim();
     const mission_id = document.getElementById('mission-input').value.trim() || 'TEST_MISSION';
     if (!question) return;
     const chatLog = document.getElementById('chat-log');
-    chatLog.innerHTML += '<div style="color:#aaa; margin-top:8px;"><span style="color:#378add;">You:</span> ' + question + '</div>';
+    chatLog.innerHTML += '<div style="color:#aaa;margin-top:8px;"><span style="color:#378add;">You:</span> ' + question + '</div>';
     chatLog.innerHTML += '<div style="color:#555;" id="thinking">Thinking...</div>';
     chatLog.scrollTop = chatLog.scrollHeight;
     document.getElementById('question-input').value = '';
     try {
-      const res = await fetch('/api/ask', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({question, mission_id})
-      });
+      const res = await fetch('/api/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question,mission_id}) });
       const data = await res.json();
       document.getElementById('thinking').remove();
-      chatLog.innerHTML += '<div style="color:#ccc; margin-bottom:8px;"><span style="color:#00c853;">AI:</span> ' + data.answer + '</div>';
+      chatLog.innerHTML += '<div style="color:#ccc;margin-bottom:8px;"><span style="color:#00c853;">AI:</span> ' + data.answer + '</div>';
       chatLog.scrollTop = chatLog.scrollHeight;
-      log('AI answered question about mission ' + mission_id);
-    } catch(e) {
-      document.getElementById('thinking').remove();
-      chatLog.innerHTML += '<div style="color:#e53935;">Error: ' + e + '</div>';
-    }
+    } catch(e) { document.getElementById('thinking')?.remove(); chatLog.innerHTML += '<div style="color:#e53935;">Error: '+e+'</div>'; }
   }
 
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && document.activeElement.id === 'question-input') {
-      askQuestion();
-    }
-  });
+  document.addEventListener('keydown', e => { if (e.key==='Enter' && document.activeElement.id==='question-input') askQuestion(); });
 
-  // Init
   loadStatus();
   loadMissions();
+  window.addEventListener('load', () => connectCam('pupper'));
   setInterval(loadStatus, 10000);
   setInterval(loadMissions, 30000);
+  setInterval(pollPose, 500);
 </script>
 </body>
 </html>
