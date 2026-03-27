@@ -86,12 +86,17 @@ def api_ask():
     try:
         mission = get_mission(mission_id)
         context = f"""Mission ID: {mission_id}
-Status: {mission.get('status', 'unknown')}
-Type: {mission.get('mission_type', 'unknown')}
 Robot: {mission.get('robot_id', 'unknown')}
-Summary: {mission.get('summary', 'No summary available')}
-Turns: {mission.get('turns', 'unknown')}
-Duration: {mission.get('duration', 'unknown')}"""
+Type: {mission.get('mission_type', 'unknown')}
+Result: {mission.get('mission_result', 'unknown')}
+Abort Reason: {mission.get('abort_reason', 'N/A')}
+Duration: {mission.get('duration_seconds', 'unknown')} seconds
+Total Moves: {mission.get('moves_total', 'unknown')}
+Moves Straight: {mission.get('moves_straight', 'unknown')}
+Moves Left Turn: {mission.get('moves_left_turn', 'unknown')}
+Moves Right Turn: {mission.get('moves_right_turn', 'unknown')}
+Moves Reverse: {mission.get('moves_reverse', 'unknown')}
+Distance Traveled: {mission.get('distance_traveled', 'unknown')}"""
         rag_context = retrieve(store, question)
         prompt = f"""You are an assistant for the Mini-Pupper V2 robotics capstone project.
 Use the mission data and RAG context below to answer the question.

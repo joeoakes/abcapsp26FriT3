@@ -186,7 +186,7 @@
   <div class="card span-2">
     <h2>AI MISSION ASSISTANT &mdash; ask about any mission</h2>
     <div style="display:flex; gap:8px; margin-bottom:10px;">
-      <input id="mission-input" type="text" value="TEST"
+      <input id="mission-input" type="text" value="TEST_MISSION"
         style="width:120px; background:#111; border:1px solid #333; color:#fff; padding:6px 10px; border-radius:4px; font-family:monospace; font-size:13px;"
         placeholder="mission id" />
       <input id="question-input" type="text"
@@ -267,7 +267,7 @@
           </div>
           ${badgeHTML(m.mission_result)}
         `;
-        div.onclick = () => openModal(m);
+        div.onclick = () => { openModal(m); document.getElementById('mission-input').value = m.id; };
         list.appendChild(div);
       });
       const last = missions[missions.length-1];
@@ -305,7 +305,7 @@
 
   async function askQuestion() {
     const question = document.getElementById('question-input').value.trim();
-    const mission_id = document.getElementById('mission-input').value.trim() || 'TEST';
+    const mission_id = document.getElementById('mission-input').value.trim() || 'TEST_MISSION';
     if (!question) return;
     const chatLog = document.getElementById('chat-log');
     chatLog.innerHTML += '<div style="color:#aaa; margin-top:8px;"><span style="color:#378add;">You:</span> ' + question + '</div>';
