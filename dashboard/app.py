@@ -119,7 +119,7 @@ def api_status():
     except:
         mongo_status = 'disconnected'
     try:
-        urllib.request.urlopen('http://10.170.8.109:11434/', timeout=2)
+        urllib.request.urlopen('http://127.0.0.1:11434/', timeout=2)
         ollama_status = 'connected'
     except:
         ollama_status = 'disconnected'
