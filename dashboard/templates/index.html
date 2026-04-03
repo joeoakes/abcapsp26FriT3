@@ -530,7 +530,7 @@
     box-shadow: 0 0 0 1px rgba(0,229,255,.1);
   }
 
-  .ai-mission-input { width: 140px; }
+  .ai-mission-input { width: 180px; appearance: none; -webkit-appearance: none; cursor: pointer; }
   .ai-question-input { flex: 1; }
 
   .ask-btn {
@@ -1024,10 +1024,12 @@
       missions.forEach(m => {
         const div = document.createElement('div');
         div.className = 'mission-item';
+        const dur = m.duration_seconds ? m.duration_seconds + 's' : '--';
+        const moves = m.moves_total ? m.moves_total + ' moves' : '--';
         div.innerHTML =
           '<div class="mission-item-left">' +
             '<div class="mission-type">' + (m.mission_type || 'UNKNOWN') + ' &mdash; ' + (m.robot_id || '?') + '</div>' +
-            '<div class="mission-id-label">' + m.id + '</div>' +
+            '<div class="mission-id-label">' + m.id + ' &nbsp;·&nbsp; ' + dur + ' &nbsp;·&nbsp; ' + moves + '</div>' +
           '</div>' + badgeHTML(m.mission_result);
         div.onclick = () => {
           openModal(m);
