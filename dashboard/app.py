@@ -66,15 +66,21 @@ def camera_detection():
         return jsonify({"tag_id":None,"x":None,"y":None,"z":None,"roll":None,"pitch":None,"yaw":None})
 
 def get_mission_ids():
-    keys = r.keys('team3fmission:*:summary')
-    ids = []
-    for k in keys:
-        parts = k.split(':')
-        if len(parts) == 3: ids.append(parts[1])
-    return sorted(ids)
+    try:
+        keys = r.keys('team3fmission:*:summary')
+        ids = []
+        for k in keys:
+            parts = k.split(':')
+            if len(parts) == 3: ids.append(parts[1])
+        return sorted(ids)
+    except Exception:
+        return []
 
 def get_mission(mission_id):
-    return r.hgetall(f'team3fmission:{mission_id}:summary')
+    try:
+        return r.hgetall(f'team3fmission:{mission_id}:summary')
+    except Exception:
+        return {}
 
 @app.route('/')
 def index():

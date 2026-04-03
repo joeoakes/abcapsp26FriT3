@@ -3,104 +3,831 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mini-Pupper V2 Dashboard</title>
+<title>Mini-Pupper V2 — Team 3F</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --bg:        #080a0e;
+    --bg-card:   #0d1117;
+    --bg-inset:  #060809;
+    --border:    #1a2030;
+    --border-hi: #243045;
+    --text:      #c9d1e0;
+    --text-dim:  #4a5568;
+    --text-mid:  #7a8a9e;
+    --accent:    #00e5ff;
+    --accent-dim:#003d45;
+    --green:     #00e676;
+    --green-dim: #0a2e1a;
+    --red:       #ff1744;
+    --red-dim:   #2e0a10;
+    --orange:    #ff9100;
+    --orange-dim:#2e1a00;
+    --scan-line: rgba(0,229,255,0.03);
+    --glow:      0 0 20px rgba(0,229,255,0.08);
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #0f0f11; color: #e0e0e0; font-family: 'Courier New', monospace; }
-  header { background: #1a1a1e; border-bottom: 1px solid #333; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; }
-  header h1 { font-size: 18px; letter-spacing: 2px; color: #fff; }
-  .status-bar { display: flex; gap: 16px; font-size: 12px; align-items: center; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
-  .dot.green { background: #00c853; } .dot.red { background: #e53935; } .dot.gray { background: #555; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px; }
-  .card { background: #1a1a1e; border: 1px solid #2a2a2e; border-radius: 6px; padding: 16px; }
-  .card h2 { font-size: 11px; letter-spacing: 1.5px; color: #666; margin-bottom: 12px; border-bottom: 1px solid #2a2a2e; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-  .cam-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-  .cam-block { display: flex; flex-direction: column; gap: 6px; }
-  .cam-label { font-size: 10px; letter-spacing: 1px; color: #555; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; }
-  .cam-feed { width: 100%; background: #111; border: 1px solid #2a2a2e; border-radius: 4px; object-fit: cover; display: block; }
-  .cam-feed.video { aspect-ratio: 4/3; } .cam-feed.map { aspect-ratio: 1/1; }
-  .ip-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-  .ip-input { flex: 1; background: #111; border: 1px solid #2a2a2e; color: #aaa; padding: 4px 8px; border-radius: 3px; font-family: monospace; font-size: 11px; }
-  .ip-input:focus { outline: none; border-color: #444; color: #fff; }
-  .ip-btn { background: none; border: 1px solid #333; color: #666; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-family: monospace; font-size: 11px; }
-  .ip-btn:hover { border-color: #666; color: #fff; }
-  .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #333; flex-shrink: 0; transition: background 0.3s; }
-  .live-dot.on { background: #00c853; animation: pulse 1.5s infinite; }
-  .live-dot.off { background: #e53935; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-  .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .stat { background: #111; border-radius: 4px; padding: 12px; }
-  .stat .label { font-size: 11px; color: #666; margin-bottom: 4px; }
-  .stat .value { font-size: 18px; color: #fff; font-weight: bold; }
-  .mission-list { max-height: 260px; overflow-y: auto; }
-  .mission-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 4px; margin-bottom: 6px; background: #111; cursor: pointer; font-size: 13px; }
-  .mission-item:hover { background: #222; }
-  .mission-id { color: #aaa; font-size: 11px; }
-  .badge { padding: 2px 10px; border-radius: 3px; font-size: 11px; font-weight: bold; }
-  .badge.success,.badge.completed { background: #0a2e0a; color: #00c853; border: 1px solid #00c853; }
-  .badge.failed { background: #2e0a0a; color: #e53935; border: 1px solid #e53935; }
-  .badge.aborted { background: #2e1a0a; color: #ff6d00; border: 1px solid #ff6d00; }
-  .badge.unknown { background: #222; color: #aaa; border: 1px solid #555; }
-  .log-box { background: #111; border-radius: 4px; padding: 10px; height: 200px; overflow-y: auto; font-size: 12px; line-height: 1.8; }
-  .log-line { color: #666; } .log-line span { color: #0f9; }
-  .modal-overlay { display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,.7); z-index:100; align-items:center; justify-content:center; }
-  .modal-overlay.open { display:flex; }
-  .modal { background:#1a1a1e; border:1px solid #333; border-radius:8px; padding:24px; width:500px; max-width:90vw; }
-  .modal h3 { color:#fff; margin-bottom:16px; font-size:14px; letter-spacing:1px; }
-  .modal-field { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid #222; font-size:13px; }
-  .modal-field .k { color:#666; } .modal-field .v { color:#fff; }
-  .modal-close { margin-top:16px; background:#333; border:none; color:#fff; padding:8px 20px; border-radius:4px; cursor:pointer; font-family:monospace; }
-  .modal-close:hover { background:#444; }
-  .span-2 { grid-column: span 2; }
-  .refresh-btn { background:none; border:1px solid #333; color:#888; padding:4px 12px; border-radius:3px; cursor:pointer; font-family:monospace; font-size:11px; }
-  .refresh-btn:hover { border-color:#666; color:#fff; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      var(--scan-line) 2px,
+      var(--scan-line) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ─── HEADER ─────────────────────────────── */
+  header {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .logo-bracket {
+    color: var(--accent);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+
+  header h1 {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: 3px;
+    color: #fff;
+  }
+
+  .header-tag {
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    border: 1px solid var(--accent-dim);
+    padding: 2px 8px;
+    border-radius: 2px;
+    background: rgba(0,229,255,0.04);
+  }
+
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    transition: all 0.3s;
+  }
+
+  .status-pill.ok   { border-color: rgba(0,230,118,.3); color: var(--green); }
+  .status-pill.fail { border-color: rgba(255,23,68,.3);  color: var(--red); }
+
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+
+  .dot.pulse { animation: pulse 1.8s ease-in-out infinite; }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; }
+    50%      { opacity: .5; box-shadow: 0 0 0 3px transparent; }
+  }
+
+  .clock { color: var(--text-dim); font-size: 11px; letter-spacing: 1px; }
+
+  /* ─── GRID ────────────────────────────────── */
+  .grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 1px;
+    background: var(--border);
+    min-height: calc(100vh - 56px);
+  }
+
+  /* ─── CARD ────────────────────────────────── */
+  .card {
+    background: var(--bg-card);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeIn .4s ease both;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .card:nth-child(2) { animation-delay:.05s; }
+  .card:nth-child(3) { animation-delay:.10s; }
+  .card:nth-child(4) { animation-delay:.15s; }
+  .card:nth-child(5) { animation-delay:.20s; }
+  .card:nth-child(6) { animation-delay:.25s; }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .card-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title::before {
+    content: '';
+    width: 3px; height: 12px;
+    background: var(--accent);
+    border-radius: 2px;
+    display: inline-block;
+  }
+
+  /* span full width */
+  .span-full { grid-column: 1 / -1; }
+
+  /* ─── ROBOT STATUS STATS ─────────────────── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .stat {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+    opacity: 0.3;
+  }
+
+  .stat .label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+  }
+
+  .stat .value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 1px;
+    font-family: 'Rajdhani', sans-serif;
+  }
+
+  .stat .value.accent { color: var(--accent); }
+
+  /* service status row */
+  .service-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .service-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .service-name { color: var(--text-mid); letter-spacing: 1px; font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 12px; }
+  .service-val  { font-size: 10px; font-weight: 700; letter-spacing: 1px; }
+  .service-val.ok   { color: var(--green); }
+  .service-val.fail { color: var(--red); }
+  .service-val.dim  { color: var(--text-dim); }
+
+  /* ─── MISSION LIST ────────────────────────── */
+  .mission-list {
+    max-height: 280px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .mission-list::-webkit-scrollbar { width: 4px; }
+  .mission-list::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+
+  .mission-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 12px;
+    border-radius: 3px;
+    margin-bottom: 4px;
+    background: var(--bg-inset);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+    gap: 10px;
+  }
+
+  .mission-item:hover {
+    border-color: var(--border-hi);
+    background: #111820;
+  }
+
+  .mission-item-left { flex: 1; min-width: 0; }
+
+  .mission-type {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mission-id-label {
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  .badge {
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    white-space: nowrap;
+    font-family: 'Rajdhani', sans-serif;
+  }
+
+  .badge.success, .badge.completed { background: var(--green-dim); color: var(--green); border: 1px solid rgba(0,230,118,.25); }
+  .badge.failed  { background: var(--red-dim);    color: var(--red);   border: 1px solid rgba(255,23,68,.25); }
+  .badge.aborted { background: var(--orange-dim); color: var(--orange); border: 1px solid rgba(255,145,0,.25); }
+  .badge.unknown { background: #111; color: var(--text-dim); border: 1px solid var(--border); }
+
+  /* ─── CAMERA SECTION ──────────────────────── */
+  .cam-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+
+  .cam-block { display: flex; flex-direction: column; gap: 6px; align-self: start; }
+
+  .cam-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+  }
+
+  .live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border-hi);
+    flex-shrink: 0;
+    transition: background .3s;
+  }
+
+  .live-dot.on  { background: var(--green); animation: pulse 1.8s ease-in-out infinite; color: var(--green); }
+  .live-dot.off { background: var(--red); }
+
+  .ip-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ip-input {
+    flex: 1;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    color: var(--text-mid);
+    padding: 5px 8px;
+    border-radius: 3px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    transition: border-color .2s, color .2s;
+  }
+
+  .ip-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 0 0 0 1px rgba(0,229,255,.1);
+  }
+
+  .ip-btn {
+    background: transparent;
+    border: 1px solid var(--border-hi);
+    color: var(--text-mid);
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 1px;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+
+  .ip-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,229,255,.05);
+  }
+
+  .cam-feed {
+    width: 100%;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    object-fit: cover;
+    display: block;
+  }
+
+  .cam-feed.video { aspect-ratio: 4/3; }
+  .cam-feed.map   { aspect-ratio: 4/3; }
+
+  .cam-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-dim);
+    font-size: 10px;
+    letter-spacing: 1px;
+    font-family: 'Rajdhani', sans-serif;
+    position: relative;
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+  }
+
+  .cam-placeholder::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 8px,
+      rgba(255,255,255,.01) 8px,
+      rgba(255,255,255,.01) 16px
+    );
+    border-radius: 3px;
+  }
+
+  /* apriltag pose row */
+  .pose-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .pose-stat {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 8px;
+    text-align: center;
+  }
+
+  .pose-stat .label {
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+  }
+
+  .pose-stat .value {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    font-family: 'Rajdhani', sans-serif;
+  }
+
+  /* ─── LOGS ────────────────────────────────── */
+  .log-box {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px 12px;
+    height: 220px;
+    overflow-y: auto;
+    font-size: 11px;
+    line-height: 2;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .log-box::-webkit-scrollbar { width: 3px; }
+  .log-box::-webkit-scrollbar-thumb { background: var(--border-hi); }
+
+  .log-line { color: var(--text-dim); display: flex; gap: 8px; }
+  .log-line .ts { color: var(--accent); opacity: .6; flex-shrink: 0; }
+  .log-line.err .ts { color: var(--red); opacity: .8; }
+  .log-line.err { color: rgba(255,23,68,.7); }
+  .log-line.ok  { color: rgba(0,230,118,.6); }
+  .log-line.ok .ts { color: var(--green); opacity: .6; }
+
+  /* ─── AI ASSISTANT ────────────────────────── */
+  .ai-input-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .ai-input {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 10px;
+    border-radius: 3px;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+
+  .ai-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px rgba(0,229,255,.1);
+  }
+
+  .ai-mission-input { width: 140px; }
+  .ai-question-input { flex: 1; }
+
+  .ask-btn {
+    background: rgba(0,230,118,.08);
+    border: 1px solid rgba(0,230,118,.3);
+    color: var(--green);
+    padding: 7px 18px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 2px;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+
+  .ask-btn:hover {
+    background: rgba(0,230,118,.15);
+    border-color: var(--green);
+    box-shadow: 0 0 12px rgba(0,230,118,.15);
+  }
+
+  .chat-log {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 12px;
+    min-height: 130px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 12px;
+    line-height: 1.8;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .chat-log::-webkit-scrollbar { width: 3px; }
+  .chat-log::-webkit-scrollbar-thumb { background: var(--border-hi); }
+
+  .chat-empty { color: var(--text-dim); font-size: 11px; font-style: italic; }
+
+  .chat-you { color: var(--text); margin-top: 8px; }
+  .chat-you .who  { color: var(--accent); font-weight: 700; }
+
+  .chat-ai  { color: var(--text-mid); margin-bottom: 8px; }
+  .chat-ai .who   { color: var(--green); font-weight: 700; }
+
+  .chat-thinking { color: var(--text-dim); font-style: italic; }
+  .chat-error    { color: var(--red); }
+
+  /* ─── BUTTONS ─────────────────────────────── */
+  .refresh-btn {
+    background: transparent;
+    border: 1px solid var(--border-hi);
+    color: var(--text-dim);
+    padding: 3px 10px;
+    border-radius: 2px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    transition: all .2s;
+  }
+
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ─── MODAL ───────────────────────────────── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.75);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border-hi);
+    border-radius: 6px;
+    padding: 24px;
+    width: 480px;
+    max-width: 92vw;
+    box-shadow: 0 24px 80px rgba(0,0,0,.8), 0 0 0 1px rgba(0,229,255,.05);
+    animation: modalIn .2s ease both;
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(.97) translateY(-8px); }
+    to   { opacity: 1; transform: scale(1)   translateY(0); }
+  }
+
+  .modal-title-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .modal-title-bar h3 {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .modal-title-bar h3::before {
+    content: '';
+    width: 3px; height: 14px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  .modal-field {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    gap: 16px;
+  }
+
+  .modal-field:last-child { border-bottom: none; }
+  .modal-field .k { color: var(--text-dim); letter-spacing: 1px; white-space: nowrap; }
+  .modal-field .v { color: #fff; text-align: right; }
+
+  .modal-close {
+    background: var(--bg-inset);
+    border: 1px solid var(--border-hi);
+    color: var(--text-mid);
+    padding: 7px 18px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 2px;
+    margin-top: 16px;
+    transition: all .2s;
+  }
+
+  .modal-close:hover { border-color: var(--red); color: var(--red); }
+
+  /* ─── EMPTY STATE ─────────────────────────── */
+  .empty { color: var(--text-dim); font-size: 11px; padding: 20px 0; text-align: center; letter-spacing: 1px; font-family: 'Rajdhani', sans-serif; }
 </style>
 </head>
 <body>
+
+<!-- HEADER -->
 <header>
-  <h1>MINI-PUPPER V2 &mdash; TEAM 3F</h1>
+  <div class="header-left">
+    <span class="logo-bracket">[&nbsp;]</span>
+    <h1>MINI-PUPPER V2</h1>
+    <span class="header-tag">TEAM 3F</span>
+  </div>
   <div class="status-bar">
-    <span id="redis-status"><span class="dot gray"></span>Redis</span>
-    <span id="robot-status"><span class="dot gray"></span>Robot</span>
-    <span id="last-update" style="color:#444">--</span>
+    <div class="status-pill" id="redis-pill">
+      <span class="dot"></span>
+      <span id="redis-label">REDIS</span>
+    </div>
+    <div class="status-pill" id="ollama-pill">
+      <span class="dot"></span>
+      <span id="ollama-label">OLLAMA</span>
+    </div>
+    <div class="status-pill" id="mongo-pill">
+      <span class="dot"></span>
+      <span id="mongo-label">MONGO</span>
+    </div>
+    <span class="clock" id="last-update">--:--:--</span>
   </div>
 </header>
+
+<!-- MAIN GRID -->
 <div class="grid">
+
+  <!-- COL 1: Robot Status -->
   <div class="card">
-    <h2>ROBOT STATUS</h2>
-    <div class="status-grid">
-      <div class="stat"><div class="label">Robot</div><div class="value" id="stat-robot">--</div></div>
-      <div class="stat"><div class="label">Team</div><div class="value" id="stat-team">--</div></div>
-      <div class="stat"><div class="label">Missions</div><div class="value" id="stat-missions">--</div></div>
-      <div class="stat"><div class="label">Last Result</div><div class="value" id="stat-last-result">--</div></div>
+    <div class="card-header">
+      <div class="card-title">ROBOT STATUS</div>
+    </div>
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="label">ROBOT</div>
+        <div class="value accent" id="stat-robot" style="font-size:14px;">--</div>
+      </div>
+      <div class="stat">
+        <div class="label">TEAM</div>
+        <div class="value" id="stat-team">--</div>
+      </div>
+      <div class="stat">
+        <div class="label">MISSIONS</div>
+        <div class="value" id="stat-missions">--</div>
+      </div>
+      <div class="stat">
+        <div class="label">LAST RESULT</div>
+        <div class="value" id="stat-last-result" style="font-size:14px;">--</div>
+      </div>
+    </div>
+    <div class="service-row">
+      <div class="service-item">
+        <span class="service-name">REDIS</span>
+        <span class="service-val dim" id="svc-redis">--</span>
+      </div>
+      <div class="service-item">
+        <span class="service-name">OLLAMA (llama3.2)</span>
+        <span class="service-val dim" id="svc-ollama">--</span>
+      </div>
+      <div class="service-item">
+        <span class="service-name">MONGODB</span>
+        <span class="service-val dim" id="svc-mongo">--</span>
+      </div>
+      <div class="service-item">
+        <span class="service-name">AI SERVER</span>
+        <span class="service-val dim">10.170.8.109</span>
+      </div>
+      <div class="service-item">
+        <span class="service-name">LOG SERVER</span>
+        <span class="service-val dim">10.170.8.130</span>
+      </div>
     </div>
   </div>
+
+  <!-- COL 2: Mission History -->
   <div class="card">
-    <h2>MISSION HISTORY <button class="refresh-btn" onclick="loadMissions()">REFRESH</button></h2>
-    <div class="mission-list" id="mission-list"><div style="color:#444;font-size:13px;">Loading...</div></div>
+    <div class="card-header">
+      <div class="card-title">MISSION HISTORY</div>
+      <button class="refresh-btn" onclick="loadMissions()">↻ REFRESH</button>
+    </div>
+    <div class="mission-list" id="mission-list">
+      <div class="empty">Loading missions...</div>
+    </div>
   </div>
-  <div class="card span-2">
-    <h2>CAMERA FEEDS &amp; APRILTAG MAP</h2>
+
+  <!-- COL 1: Logs -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">DIAGNOSTICS</div>
+    </div>
+    <div class="log-box" id="log-box"></div>
+  </div>
+
+  <!-- COL 2: AI Assistant -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">AI MISSION ASSISTANT</div>
+    </div>
+    <div class="ai-input-row">
+      <input id="mission-input" class="ai-input ai-mission-input" type="text" value="TEST_MISSION" placeholder="mission id" />
+      <input id="question-input" class="ai-input ai-question-input" type="text" placeholder="Ask about this mission..." />
+      <button class="ask-btn" onclick="askQuestion()">ASK</button>
+    </div>
+    <div class="chat-log" id="chat-log">
+      <div class="chat-empty">Ask a question about a mission to get started...</div>
+    </div>
+  </div>
+
+  <!-- SPAN FULL: Camera -->
+  <div class="card span-full">
+    <div class="card-header">
+      <div class="card-title">CAMERA FEEDS &amp; APRILTAG MAP</div>
+    </div>
     <div class="cam-grid">
+      <!-- Laptop cam -->
       <div class="cam-block">
         <div class="ip-row">
-          <input class="ip-input" id="ip-laptop" placeholder="laptop IP e.g. 192.168.1.10" value="" />
+          <input class="ip-input" id="ip-laptop" placeholder="laptop IP e.g. 192.168.1.10" />
           <button class="ip-btn" onclick="connectCam('laptop')">CONNECT</button>
         </div>
         <div class="cam-label"><span class="live-dot" id="dot-laptop"></span>LAPTOP CAM</div>
-        <img id="feed-laptop" class="cam-feed video" src="" style="display:none" />
-        <div id="placeholder-laptop" class="cam-feed video" style="display:flex;align-items:center;justify-content:center;color:#333;font-size:12px;">enter laptop IP above</div>
+        <img id="feed-laptop" class="cam-feed video" src="" style="display:none" onerror="camError('laptop')" />
+        <div id="placeholder-laptop" class="cam-placeholder video" style="aspect-ratio:4/3">ENTER IP ABOVE</div>
       </div>
+      <!-- Pupper cam -->
       <div class="cam-block">
         <div class="ip-row">
-          <input class="ip-input" id="ip-pupper" placeholder="Mini-Pupper IP" value="10.170.9.61" />
+          <input class="ip-input" id="ip-pupper" value="10.170.9.61" />
           <button class="ip-btn" onclick="connectCam('pupper')">CONNECT</button>
         </div>
         <div class="cam-label"><span class="live-dot" id="dot-pupper"></span>MINI-PUPPER CAM</div>
-        <img id="feed-pupper" class="cam-feed video" src="" style="display:none" />
-        <div id="placeholder-pupper" class="cam-feed video" style="display:flex;align-items:center;justify-content:center;color:#333;font-size:12px;">press CONNECT</div>
+        <img id="feed-pupper" class="cam-feed video" src="" style="display:none" onerror="camError('pupper')" />
+        <div id="placeholder-pupper" class="cam-placeholder video" style="aspect-ratio:4/3">PRESS CONNECT</div>
       </div>
+      <!-- Map -->
       <div class="cam-block">
         <div class="ip-row">
           <select id="map-source" class="ip-input">
@@ -111,80 +838,87 @@
           <button class="ip-btn" onclick="connectMap()">LOAD</button>
         </div>
         <div class="cam-label">OCCUPANCY GRID MAP</div>
-        <img id="feed-map" class="cam-feed map" src="" style="display:none" />
-        <div id="placeholder-map" class="cam-feed map" style="display:flex;align-items:center;justify-content:center;color:#333;font-size:12px;">select source above</div>
+        <img id="feed-map" class="cam-feed video" src="" style="display:none" />
+        <div id="placeholder-map" class="cam-placeholder" style="aspect-ratio:4/3;width:100%">SELECT SOURCE</div>
       </div>
     </div>
-    <div style="margin-top:12px;background:#111;border-radius:4px;padding:12px;">
-      <div style="font-size:10px;letter-spacing:1px;color:#555;margin-bottom:10px;">LIVE APRILTAG POSE</div>
-      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;">
-        <div class="stat"><div class="label">SOURCE</div><div class="value" id="pose-source" style="font-size:13px;">--</div></div>
-        <div class="stat"><div class="label">TAG ID</div><div class="value" id="pose-id">--</div></div>
-        <div class="stat"><div class="label">X (m)</div><div class="value" id="pose-x">--</div></div>
-        <div class="stat"><div class="label">Y (m)</div><div class="value" id="pose-y">--</div></div>
-        <div class="stat"><div class="label">ROLL</div><div class="value" id="pose-roll" style="font-size:14px;">--</div></div>
-        <div class="stat"><div class="label">PITCH</div><div class="value" id="pose-pitch" style="font-size:14px;">--</div></div>
-        <div class="stat"><div class="label">YAW</div><div class="value" id="pose-yaw" style="font-size:14px;">--</div></div>
+
+    <!-- AprilTag pose -->
+    <div style="margin-top:14px;background:var(--bg-inset);border:1px solid var(--border);border-radius:4px;padding:12px;">
+      <div style="font-size:9px;letter-spacing:2px;color:var(--text-dim);margin-bottom:8px;font-family:'Rajdhani',sans-serif;font-weight:600;">LIVE APRILTAG POSE</div>
+      <div class="pose-grid">
+        <div class="pose-stat"><div class="label">SOURCE</div><div class="value" id="pose-source" style="color:var(--text-mid);font-size:11px;">--</div></div>
+        <div class="pose-stat"><div class="label">TAG ID</div><div class="value" id="pose-id">--</div></div>
+        <div class="pose-stat"><div class="label">X (m)</div><div class="value" id="pose-x">--</div></div>
+        <div class="pose-stat"><div class="label">Y (m)</div><div class="value" id="pose-y">--</div></div>
+        <div class="pose-stat"><div class="label">ROLL</div><div class="value" id="pose-roll">--</div></div>
+        <div class="pose-stat"><div class="label">PITCH</div><div class="value" id="pose-pitch">--</div></div>
+        <div class="pose-stat"><div class="label">YAW</div><div class="value" id="pose-yaw">--</div></div>
       </div>
     </div>
   </div>
-  <div class="card">
-    <h2>LOGS &amp; DIAGNOSTICS</h2>
-    <div class="log-box" id="log-box"></div>
-  </div>
-  <div class="card">
-    <h2>AI MISSION ASSISTANT</h2>
-    <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <input id="mission-input" type="text" value="TEST_MISSION" style="width:120px;background:#111;border:1px solid #333;color:#fff;padding:6px 10px;border-radius:4px;font-family:monospace;font-size:13px;" placeholder="mission id" />
-      <input id="question-input" type="text" style="flex:1;background:#111;border:1px solid #333;color:#fff;padding:6px 10px;border-radius:4px;font-family:monospace;font-size:13px;" placeholder="Ask about this mission..." />
-      <button onclick="askQuestion()" style="background:#1a3d1a;border:1px solid #00c853;color:#00c853;padding:6px 16px;border-radius:4px;cursor:pointer;font-family:monospace;font-size:13px;">ASK</button>
-    </div>
-    <div id="chat-log" style="background:#111;border-radius:4px;padding:10px;min-height:120px;max-height:200px;overflow-y:auto;font-size:13px;line-height:1.7;">
-      <div style="color:#444;">Ask a question about a mission to get started...</div>
-    </div>
-  </div>
+
 </div>
+
+<!-- MISSION DETAIL MODAL -->
 <div class="modal-overlay" id="modal">
   <div class="modal">
-    <h3 id="modal-title">MISSION DETAIL</h3>
+    <div class="modal-title-bar">
+      <h3 id="modal-title">MISSION DETAIL</h3>
+    </div>
     <div id="modal-body"></div>
-    <button class="modal-close" onclick="closeModal()">CLOSE</button>
+    <button class="modal-close" onclick="closeModal()">✕ CLOSE</button>
   </div>
 </div>
+
 <script>
   const camIPs = { laptop: '', pupper: '10.170.9.61' };
 
+  // ── CAMERA ──────────────────────────────────
   async function connectCam(which) {
     const ip = document.getElementById('ip-' + which).value.trim();
-    if (!ip) { log('Enter an IP for ' + which + ' cam'); return; }
+    if (!ip) { log('Enter an IP for ' + which + ' cam', 'err'); return; }
     camIPs[which] = ip;
-    const res = await fetch('/api/camera/check?ip=' + encodeURIComponent(ip));
-    const data = await res.json();
+    log('Checking ' + which + ' cam at ' + ip + '...');
+    try {
+      const res = await fetch('/api/camera/check?ip=' + encodeURIComponent(ip));
+      const data = await res.json();
+      setCamState(which, data.online, ip);
+    } catch(e) {
+      setCamState(which, false, ip);
+    }
+  }
+
+  function setCamState(which, online, ip) {
     const dot = document.getElementById('dot-' + which);
     const img = document.getElementById('feed-' + which);
     const ph  = document.getElementById('placeholder-' + which);
-    if (data.online) {
+    dot.className = 'live-dot ' + (online ? 'on' : 'off');
+    if (online) {
       img.src = '/camera/stream?ip=' + encodeURIComponent(ip) + '&path=/video_feed';
       img.style.display = 'block'; ph.style.display = 'none';
-      dot.className = 'live-dot on';
-      log(which + ' cam connected at ' + ip);
+      log(which + ' cam connected — ' + ip, 'ok');
     } else {
-      dot.className = 'live-dot off'; img.style.display = 'none'; ph.style.display = 'flex';
-      ph.textContent = ip + ' unreachable — is apriltag/app.py running?';
-      log(which + ' cam at ' + ip + ' unreachable');
+      img.style.display = 'none'; ph.style.display = 'flex';
+      ph.textContent = ip + ' UNREACHABLE';
+      log(which + ' cam at ' + ip + ' unreachable', 'err');
     }
+  }
+
+  function camError(which) {
+    document.getElementById('dot-' + which).className = 'live-dot off';
   }
 
   function connectMap() {
     const which = document.getElementById('map-source').value;
-    if (!which) { log('Select a map source first'); return; }
+    if (!which) { log('Select a map source first', 'err'); return; }
     const ip = camIPs[which];
-    if (!ip) { log('Connect ' + which + ' cam first'); return; }
+    if (!ip) { log('Connect ' + which + ' cam first', 'err'); return; }
     const img = document.getElementById('feed-map');
     const ph  = document.getElementById('placeholder-map');
     img.src = '/camera/stream?ip=' + encodeURIComponent(ip) + '&path=/map_feed';
     img.style.display = 'block'; ph.style.display = 'none';
-    log('Map source: ' + which + ' (' + ip + ')');
+    log('Map source: ' + which + ' (' + ip + ')', 'ok');
   }
 
   async function pollPose() {
@@ -199,100 +933,192 @@
         document.getElementById('pose-id').textContent    = hasTag ? d.tag_id : '--';
         document.getElementById('pose-x').textContent     = hasTag ? d.x.toFixed(2) : '--';
         document.getElementById('pose-y').textContent     = hasTag ? d.y.toFixed(2) : '--';
-        document.getElementById('pose-roll').textContent  = hasTag ? d.roll.toFixed(1) + '°' : '--';
+        document.getElementById('pose-roll').textContent  = hasTag ? d.roll.toFixed(1)  + '°' : '--';
         document.getElementById('pose-pitch').textContent = hasTag ? d.pitch.toFixed(1) + '°' : '--';
-        document.getElementById('pose-yaw').textContent   = hasTag ? d.yaw.toFixed(1) + '°' : '--';
+        document.getElementById('pose-yaw').textContent   = hasTag ? d.yaw.toFixed(1)   + '°' : '--';
         if (hasTag) break;
       } catch(e) {}
     }
   }
 
-  function log(msg) {
+  // ── LOGGING ─────────────────────────────────
+  function log(msg, type) {
     const box = document.getElementById('log-box');
-    const now = new Date().toLocaleTimeString();
-    box.innerHTML += '<div class="log-line"><span>[' + now + ']</span> ' + msg + '</div>';
+    const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const line = document.createElement('div');
+    line.className = 'log-line' + (type ? ' ' + type : '');
+    line.innerHTML = '<span class="ts">' + now + '</span><span>' + msg + '</span>';
+    box.appendChild(line);
     box.scrollTop = box.scrollHeight;
+    // keep last 80 lines
+    while (box.children.length > 80) box.removeChild(box.firstChild);
   }
 
+  // ── BADGES ──────────────────────────────────
   function badgeHTML(result) {
-    const r = (result||'').toLowerCase();
+    const r = (result || '').toLowerCase();
     const cls = ['success','completed','failed','aborted'].includes(r) ? r : 'unknown';
-    return '<span class="badge ' + cls + '">' + (result||'UNKNOWN').toUpperCase() + '</span>';
+    return '<span class="badge ' + cls + '">' + (result || 'UNKNOWN').toUpperCase() + '</span>';
+  }
+
+  // ── STATUS ──────────────────────────────────
+  function setPill(id, ok) {
+    const el = document.getElementById(id);
+    el.className = 'status-pill ' + (ok ? 'ok' : 'fail');
+    el.querySelector('.dot').className = 'dot' + (ok ? ' pulse' : '');
   }
 
   async function loadStatus() {
     try {
-      const res = await fetch('/api/status');
+      const res  = await fetch('/api/status');
       const data = await res.json();
-      const redisOk = data.redis === 'connected';
-      document.getElementById('redis-status').innerHTML = '<span class="dot ' + (redisOk?'green':'red') + '"></span>Redis';
-      document.getElementById('robot-status').innerHTML = '<span class="dot green"></span>' + data.robot;
-      document.getElementById('stat-robot').textContent = data.robot;
-      document.getElementById('stat-team').textContent = data.team;
-      document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
-      log('Status: Redis ' + data.redis + ' | Ollama ' + data.ollama);
-    } catch(e) { log('Status fetch failed: ' + e); }
+      const redisOk  = data.redis   === 'connected';
+      const ollamaOk = data.ollama  === 'connected';
+      const mongoOk  = data.mongodb === 'connected';
+
+      setPill('redis-pill',  redisOk);
+      setPill('ollama-pill', ollamaOk);
+      setPill('mongo-pill',  mongoOk);
+
+      document.getElementById('stat-robot').textContent = data.robot  || '--';
+      document.getElementById('stat-team').textContent  = (data.team || '--').toUpperCase();
+      document.getElementById('last-update').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+      const svcCls = v => v === 'connected' ? 'ok' : 'fail';
+      const svcLbl = v => v === 'connected' ? 'ONLINE' : 'OFFLINE';
+      document.getElementById('svc-redis').className   = 'service-val ' + svcCls(data.redis);
+      document.getElementById('svc-redis').textContent = svcLbl(data.redis);
+      document.getElementById('svc-ollama').className  = 'service-val ' + svcCls(data.ollama);
+      document.getElementById('svc-ollama').textContent= svcLbl(data.ollama);
+      document.getElementById('svc-mongo').className   = 'service-val ' + svcCls(data.mongodb);
+      document.getElementById('svc-mongo').textContent = svcLbl(data.mongodb);
+
+      log('Status — Redis:' + data.redis + ' Ollama:' + data.ollama + ' Mongo:' + data.mongodb);
+    } catch(e) { log('Status fetch failed: ' + e, 'err'); }
   }
 
+  // ── MISSIONS ────────────────────────────────
   async function loadMissions() {
     try {
       const res = await fetch('/api/missions');
       const missions = await res.json();
       const list = document.getElementById('mission-list');
       document.getElementById('stat-missions').textContent = missions.length;
-      if (!missions.length) { list.innerHTML = '<div style="color:#444;font-size:13px;">No missions found</div>'; return; }
+
+      if (!missions.length) {
+        list.innerHTML = '<div class="empty">No missions recorded</div>';
+        return;
+      }
+
       list.innerHTML = '';
       missions.forEach(m => {
         const div = document.createElement('div');
         div.className = 'mission-item';
-        div.innerHTML = '<div><div style="color:#ccc">' + (m.mission_type||'unknown') + ' &mdash; ' + (m.robot_id||'?') + '</div><div class="mission-id">' + m.id + '</div></div>' + badgeHTML(m.mission_result);
-        div.onclick = () => { openModal(m); document.getElementById('mission-input').value = m.id; };
+        div.innerHTML =
+          '<div class="mission-item-left">' +
+            '<div class="mission-type">' + (m.mission_type || 'UNKNOWN') + ' &mdash; ' + (m.robot_id || '?') + '</div>' +
+            '<div class="mission-id-label">' + m.id + '</div>' +
+          '</div>' + badgeHTML(m.mission_result);
+        div.onclick = () => {
+          openModal(m);
+          document.getElementById('mission-input').value = m.id;
+        };
         list.appendChild(div);
       });
-      const last = missions[missions.length-1];
-      document.getElementById('stat-last-result').textContent = (last.mission_result||'unknown').toUpperCase();
-      log('Loaded ' + missions.length + ' mission(s)');
-    } catch(e) { log('Mission fetch failed: ' + e); }
+
+      const last = missions[missions.length - 1];
+      const lr = (last.mission_result || 'unknown').toUpperCase();
+      const lrEl = document.getElementById('stat-last-result');
+      lrEl.textContent = lr;
+      lrEl.style.color = lr === 'COMPLETED' || lr === 'SUCCESS' ? 'var(--green)' :
+                         lr === 'FAILED'    ? 'var(--red)'   :
+                         lr === 'ABORTED'   ? 'var(--orange)' : 'var(--text-mid)';
+
+      log('Loaded ' + missions.length + ' mission(s)', 'ok');
+    } catch(e) { log('Mission fetch failed: ' + e, 'err'); }
   }
 
+  // ── MODAL ────────────────────────────────────
   function openModal(m) {
     document.getElementById('modal-title').textContent = 'MISSION: ' + m.id;
     const fields = [
-      ['Robot',m.robot_id],['Type',m.mission_type],
-      ['Start',m.start_time?new Date(m.start_time*1000).toLocaleString():null],
-      ['End',m.end_time?new Date(m.end_time*1000).toLocaleString():null],
-      ['Duration',m.duration_seconds?m.duration_seconds+' s':null],
-      ['Distance',m.distance_traveled?m.distance_traveled+' units':null],
-      ['Total Moves',m.moves_total],['Straight',m.moves_straight],
-      ['Left',m.moves_left_turn],['Right',m.moves_right_turn],
-      ['Reverse',m.moves_reverse],['Result',m.mission_result],['Abort Reason',m.abort_reason],
+      ['Robot',         m.robot_id],
+      ['Type',          m.mission_type],
+      ['Start',         m.start_time  ? new Date(m.start_time * 1000).toLocaleString() : null],
+      ['End',           m.end_time    ? new Date(m.end_time   * 1000).toLocaleString() : null],
+      ['Duration',      m.duration_seconds   ? m.duration_seconds + ' s' : null],
+      ['Distance',      m.distance_traveled  ? m.distance_traveled + ' units' : null],
+      ['Total Moves',   m.moves_total],
+      ['Straight',      m.moves_straight],
+      ['Left',          m.moves_left_turn],
+      ['Right',         m.moves_right_turn],
+      ['Reverse',       m.moves_reverse],
+      ['Result',        m.mission_result],
+      ['Abort Reason',  m.abort_reason],
     ];
-    document.getElementById('modal-body').innerHTML = fields.filter(([,v])=>v)
-      .map(([k,v])=>'<div class="modal-field"><span class="k">'+k+'</span><span class="v">'+v+'</span></div>').join('');
+    document.getElementById('modal-body').innerHTML = fields
+      .filter(([, v]) => v)
+      .map(([k, v]) =>
+        '<div class="modal-field"><span class="k">' + k + '</span><span class="v">' + v + '</span></div>'
+      ).join('');
     document.getElementById('modal').classList.add('open');
   }
-  function closeModal() { document.getElementById('modal').classList.remove('open'); }
 
+  function closeModal() { document.getElementById('modal').classList.remove('open'); }
+  document.getElementById('modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+  // ── AI ASSISTANT ─────────────────────────────
   async function askQuestion() {
-    const question = document.getElementById('question-input').value.trim();
+    const question   = document.getElementById('question-input').value.trim();
     const mission_id = document.getElementById('mission-input').value.trim() || 'TEST_MISSION';
     if (!question) return;
+
     const chatLog = document.getElementById('chat-log');
-    chatLog.innerHTML += '<div style="color:#aaa;margin-top:8px;"><span style="color:#378add;">You:</span> ' + question + '</div>';
-    chatLog.innerHTML += '<div style="color:#555;" id="thinking">Thinking...</div>';
+    // clear placeholder
+    const empty = chatLog.querySelector('.chat-empty');
+    if (empty) empty.remove();
+
+    const youDiv = document.createElement('div');
+    youDiv.className = 'chat-you';
+    youDiv.innerHTML = '<span class="who">YOU</span>&nbsp;&nbsp;' + question;
+    chatLog.appendChild(youDiv);
+
+    const thinkDiv = document.createElement('div');
+    thinkDiv.className = 'chat-thinking';
+    thinkDiv.id = 'thinking';
+    thinkDiv.textContent = 'processing...';
+    chatLog.appendChild(thinkDiv);
     chatLog.scrollTop = chatLog.scrollHeight;
     document.getElementById('question-input').value = '';
+
     try {
-      const res = await fetch('/api/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question,mission_id}) });
+      const res = await fetch('/api/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, mission_id })
+      });
       const data = await res.json();
-      document.getElementById('thinking').remove();
-      chatLog.innerHTML += '<div style="color:#ccc;margin-bottom:8px;"><span style="color:#00c853;">AI:</span> ' + data.answer + '</div>';
+      thinkDiv.remove();
+
+      const aiDiv = document.createElement('div');
+      aiDiv.className = 'chat-ai';
+      aiDiv.innerHTML = '<span class="who">AI</span>&nbsp;&nbsp;' + (data.answer || data.error || 'No response');
+      chatLog.appendChild(aiDiv);
       chatLog.scrollTop = chatLog.scrollHeight;
-    } catch(e) { document.getElementById('thinking')?.remove(); chatLog.innerHTML += '<div style="color:#e53935;">Error: '+e+'</div>'; }
+    } catch(e) {
+      thinkDiv.remove();
+      const errDiv = document.createElement('div');
+      errDiv.className = 'chat-error';
+      errDiv.textContent = 'Error: ' + e;
+      chatLog.appendChild(errDiv);
+    }
   }
 
-  document.addEventListener('keydown', e => { if (e.key==='Enter' && document.activeElement.id==='question-input') askQuestion(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && document.activeElement.id === 'question-input') askQuestion();
+  });
 
+  // ── INIT ─────────────────────────────────────
   loadStatus();
   loadMissions();
   window.addEventListener('load', () => connectCam('pupper'));
