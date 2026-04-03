@@ -50,10 +50,10 @@ controller = None
 def move():
     data = request.get_json()
 
-    if not data or "move_dir" not in data:
+    if not data or "input" not in data or "move_dir" not in data["input"]:
         return jsonify({"error": "move_dir not provided"}), 400
 
-    move_dir = data["move_dir"]
+    move_dir = data["input"]["move_dir"]
 
     if move_dir == "forward":
         controller.move_forward()
