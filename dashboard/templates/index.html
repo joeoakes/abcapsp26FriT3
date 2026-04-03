@@ -792,7 +792,7 @@
       <div class="card-title">AI MISSION ASSISTANT</div>
     </div>
     <div class="ai-input-row">
-      <input id="mission-input" class="ai-input ai-mission-input" type="text" value="TEST_MISSION" placeholder="mission id" />
+      <select id="mission-input" class="ai-input ai-mission-input"><option value="TEST_MISSION">TEST_MISSION</option></select>
       <input id="question-input" class="ai-input ai-question-input" type="text" placeholder="Ask about this mission..." />
       <button class="ask-btn" onclick="askQuestion()">ASK</button>
     </div>
@@ -1011,6 +1011,15 @@
       }
 
       list.innerHTML = '';
+      // populate AI assistant dropdown
+      const sel = document.getElementById('mission-input');
+      sel.innerHTML = '';
+      missions.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = m.id + ' — ' + (m.mission_type || 'unknown');
+        sel.appendChild(opt);
+      });
       missions.forEach(m => {
         const div = document.createElement('div');
         div.className = 'mission-item';
