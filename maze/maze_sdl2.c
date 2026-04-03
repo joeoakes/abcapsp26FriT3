@@ -22,7 +22,7 @@
 #define CELL   32   // pixels per cell
 #define PAD    16   // window padding around maze
 #define URL_ENDPOINT_LOGGING "https://10.170.8.130:8449/move"
-#define URL_ENDPOINT_MP "https://10.170.9.61:8449/move"
+#define URL_ENDPOINT_MP "https://10.170.9.92:8449/move"
 #define JSON_BUFFER_SIZE 4096
 CURL *curl;
 
