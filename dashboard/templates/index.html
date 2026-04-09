@@ -530,7 +530,7 @@
     box-shadow: 0 0 0 1px rgba(0,229,255,.1);
   }
 
-  .ai-mission-input { width: 140px; }
+  .ai-mission-input { width: 180px; appearance: none; -webkit-appearance: none; cursor: pointer; }
   .ai-question-input { flex: 1; }
 
   .ask-btn {
@@ -895,7 +895,7 @@
     const ph  = document.getElementById('placeholder-' + which);
     dot.className = 'live-dot ' + (online ? 'on' : 'off');
     if (online) {
-      img.src = '/camera/stream?ip=' + encodeURIComponent(ip) + '&path=/video_feed';
+      img.src = 'http://' + ip + ':5001/video_feed';
       img.style.display = 'block'; ph.style.display = 'none';
       log(which + ' cam connected — ' + ip, 'ok');
     } else {
@@ -916,7 +916,7 @@
     if (!ip) { log('Connect ' + which + ' cam first', 'err'); return; }
     const img = document.getElementById('feed-map');
     const ph  = document.getElementById('placeholder-map');
-    img.src = '/camera/stream?ip=' + encodeURIComponent(ip) + '&path=/map_feed';
+    img.src = 'http://' + ip + ':5001/map_feed';
     img.style.display = 'block'; ph.style.display = 'none';
     log('Map source: ' + which + ' (' + ip + ')', 'ok');
   }
@@ -1017,16 +1017,19 @@
       missions.forEach(m => {
         const opt = document.createElement('option');
         opt.value = m.id;
-        opt.textContent = m.id + ' — ' + (m.mission_type || 'unknown');
+        const ts = m.start_time ? new Date(m.start_time * 1000).toLocaleString('en-US', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}) : '';
+        opt.textContent = m.id + (ts ? ' · ' + ts : '') + ' — ' + (m.mission_type || 'unknown');
         sel.appendChild(opt);
       });
       missions.forEach(m => {
         const div = document.createElement('div');
         div.className = 'mission-item';
+        const dur = m.duration_seconds ? m.duration_seconds + 's' : '--';
+        const moves = m.moves_total ? m.moves_total + ' moves' : '--';
         div.innerHTML =
           '<div class="mission-item-left">' +
             '<div class="mission-type">' + (m.mission_type || 'UNKNOWN') + ' &mdash; ' + (m.robot_id || '?') + '</div>' +
-            '<div class="mission-id-label">' + m.id + '</div>' +
+            '<div class="mission-id-label">' + m.id + ' &nbsp;·&nbsp; ' + dur + ' &nbsp;·&nbsp; ' + moves + '</div>' +
           '</div>' + badgeHTML(m.mission_result);
         div.onclick = () => {
           openModal(m);
